@@ -35,6 +35,9 @@
 
 namespace ns3 {
 namespace parrot {
+/**
+ * \brief Postions record and prediction
+ */
 
 void
 RoutingProtocol::trackPosition (Vector3D pos)
