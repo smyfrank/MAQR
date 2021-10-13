@@ -246,10 +246,9 @@ public:
   bool
   DeleteIpv4Event (Ipv4Address address);
   /**
-  * Force delete an update waiting for settling time to complete as a better update to
-  * same destination was received.
+  * Check whether the event of address is running
   * \param address destination address for which this event is running.
-  * \return true on success
+  * \return true on running
   */
   bool
   AnyRunningEvent (Ipv4Address address);
