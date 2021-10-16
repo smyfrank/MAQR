@@ -10,7 +10,7 @@
 namespace ns3 {
 namespace maqr {
 /**
- * \todo defination of different types of packets
+ * \todo definition of different types of packets
  */
 enum MessageType
 {
