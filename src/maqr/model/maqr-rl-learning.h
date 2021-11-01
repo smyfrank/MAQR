@@ -92,9 +92,25 @@ public:
    */
   virtual float CalculateQValue(Ipv4Address target, Ipv4Address hop);
   /**
-   * \brief 
-   * 
+   * \brief Get best Q value for target node
+   * \param target the target node
+   * \returns the best Q value for target node
    */
+  virtual float GetMaxValue(Ipv4Address target);
+  /**
+   * \brief Get best next hop for target node
+   * \param target the target node
+   * \returns the best next hop for the target node
+   */
+  Ipv4Address GetNextHop(Ipv4Address target);
+  /**
+   * \brief Reward function
+   * \param origin the origin address (state)
+   * \param hop the hop (action)
+   * \returns the reward
+   */
+  float GetReward(Ipv4Address origin, Ipv4Address hop);
+  
 
 private:
   float m_learningRate;
