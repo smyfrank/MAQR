@@ -4,6 +4,7 @@
 #include "maqr-neighbor.h"
 #include "maqr-packet.h"
 #include "ns3/nstime.h"
+#include <iomanip>
 
 namespace ns3 {
 namespace maqr {
@@ -67,7 +68,7 @@ class QLearning
 {
 public:
   QLearning(float alpha, float gamma, float epsilon, 
-            Neighbors nb, std::map<Ipv4Address, std::map<Ipv4Address, Ptr<QValueEntry>>> qt)
+            Neighbors nb, std::map<Ipv4Address, std::map<Ipv4Address, QValueEntry*>> qt)
   : m_learningRate(alpha),
     m_discoutRate(gamma),
     m_epsilon(epsilon),
@@ -92,7 +93,7 @@ public:
    */
   virtual float CalculateQValue(Ipv4Address target, Ipv4Address hop);
   /**
-   * \brief Get best Q value for target node
+   * \brief Get max Q value for target node(only search in the active neighbors)
    * \param target the target node
    * \returns the best Q value for target node
    */
@@ -108,6 +109,7 @@ public:
    * \param origin the origin address (state)
    * \param hop the hop (action)
    * \returns the reward
+   * \TODO: detail design
    */
   float GetReward(Ipv4Address origin, Ipv4Address hop);
   
@@ -116,8 +118,9 @@ private:
   float m_learningRate;
   float m_discoutRate;
   float m_epsilon;
+  Time m_neighborReliabilityTimeout;
   Neighbors m_neighbors;
-  std::map<Ipv4Address, std::map<Ipv4Address, Ptr<QValueEntry>>> m_QTable;
+  std::map<Ipv4Address, std::map<Ipv4Address, QValueEntry*>> m_QTable;
 };
 
 }
