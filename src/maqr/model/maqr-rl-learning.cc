@@ -82,5 +82,10 @@ Ipv4Address QLearning::GetNextHop(Ipv4Address target)
   return a;
 }
 
+float QLearning::GetReward(Ipv4Address origin, Ipv4Address hop)
+{
+  return 0.0;
 }
-}
+
+} // namespace maqr
+} // namespace ns3

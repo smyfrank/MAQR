@@ -5,6 +5,9 @@
 
 #include "maqr-packet.h"
 #include "maqr-rtable.h"
+#include "maqr-rl-learning.h"
+#include "maqr-neighbor.h"
+#include "maqr-rqueue.h"
 
 #include "ns3/node.h"
 #include "ns3/random-variable-stream.h"
@@ -132,9 +135,40 @@ public:
    */
   virtual void SetIpv4 (Ptr<Ipv4> ipv4);
 
+  virtual void ReceiveHello (Ptr<Socket> socket);
+  virtual void UpdateNeighbor (Ipv4Address origin, float qValue, Vector2D pos);
+  virtual void SendHello ();
+  virtual void IsMyOwnAddress (Ipv4Address origin);
+
   void Send (Ptr<Ipv4Route>, Ptr<const Packet>, const Ipv4Header &);
   /// Notify that packet is dropped for some reason
   void Drop (Ptr<const Packet>, const Ipv4Header &, Socket::SocketErrno);
+
+  // IP protocol
+  Ptr<Ipv4> m_ipv4;
+  // Raw unicast socket per each IP interface, map sockst ->iface address (IP + mask)
+  std::map<Ptr<Socket>, Ipv4InterfaceAddress> m_socketAddressed;
+  // Loopback device used to defer route request until a route is found
+  Ptr<NetDevice> m_lo;
+  // Nodes IP address
+  Ptr<NetDevice> m_mainAddress;
+  // Routing Table
+  RoutingTable m_routingTable;
+  // Neighbor table
+  Neighbors m_nb;
+  // A "drop-front" queue used by the routing layer to buffer packets to which it does not have a route
+  RequestQueue m_rqueue;
+
+  // Unicast callbackfor own packets
+  UnicastForwardCallback m_scb;
+  // Error callback for own packets;
+  ErrorCallback m_ecb;
+
+  // Q-Learning algorithm
+  QLearning m_qLearning;
+  // Hello interval
+  Time m_helloInterval;
+
 
 
 };

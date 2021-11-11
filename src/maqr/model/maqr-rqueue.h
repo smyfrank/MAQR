@@ -146,7 +146,106 @@ private:
   /// Expire time for queue entry
   Time m_expire;
 };
+
+class RequestQueue
+{
+public:
+  /**
+   * constructor
+   *
+   * \param maxLen the maximum length
+   * \param routeToQueueTimeout the route to queue timeout
+   */
+  RequestQueue (uint32_t maxLen, Time routeToQueueTimeout)
+    : m_maxLen (maxLen),
+      m_queueTimeout (routeToQueueTimeout)
+  {
+  }
+  /**
+   * Push entry in queue, if there is no entry with the same packet and destination address in queue.
+   * \param entry the queue entry
+   * \returns true if the entry is queued
+   */
+  bool Enqueue (QueueEntry & entry);
+  /**
+   * Return first found (the earliest) entry for given destination
+   * 
+   * \param dst the destination IP address
+   * \param entry the queue entry
+   * \returns true if the entry is dequeued
+   */
+  bool Dequeue (Ipv4Address dst, QueueEntry & entry);
+  /**
+   * Remove all packets with destination IP address dst
+   * \param dst the destination IP address
+   */
+  void DropPacketWithDst (Ipv4Address dst);
+  /**
+   * Finds whether a packet with destination dst exists in the queue
+   * 
+   * \param dst the destination IP address
+   * \returns true if an entry with the IP address is found
+   */
+  bool Find (Ipv4Address dst);
+  /**
+   * \returns the number of entries
+   */
+  uint32_t GetSize ();
+
+  // Fields
+  /**
+   * Get maximum queue length
+   * \returns the maximum queue length
+   */
+  uint32_t GetMaxQueueLen () const
+  {
+    return m_maxLen;
+  }
+  /**
+   * Set maximum queue length
+   * \param len The maximum queue length
+   */
+  void SetMaxQueueLen (uint32_t len)
+  {
+    m_maxLen = len;
+  }
+  /**
+   * Get queue timeout
+   * \returns the queue timeout
+   */
+  Time GetQueueTimeout () const
+  {
+    return m_queueTimeout;
+  }
+  /**
+   * Set queue timeout
+   * \param t The queue timeout
+   */
+  void SetQueueTimeout (Time t)
+  {
+    m_queueTimeout = t;
+  }
+
+private:
+  /// The queue
+  std::vector<QueueEntry> m_queue;
+  /// Remove all expired entries
+  void Purge ();
+  /**
+   * Notify that packet is dropped from queue by timeout
+   * \param en the queue entry to drop
+   * \param reason the reason to drop the entry
+   */
+  void Drop (QueueEntry en, std::string reason);
+  /// The maximum number of packets that we allow a routing protocol to buffer.
+  uint32_t m_maxLen;
+  /// The maximum period of time that a routing protocol is allowed to buffer a packet for, seconds.
+  Time m_queueTimeout;
+};
+
 } // namespace maqr
 } // namespace ns3
+
+
 
 #endif //MAQR_RQUEUE_H
