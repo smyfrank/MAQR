@@ -86,7 +86,7 @@ public:
   /**
    * \brief Adds entry in the neighbor table
    */
-  void AddEntry (Ipv4Address ip, Neighbor& nb);
+  void AddEntry (Ipv4Address ip, Neighbor nb);
   /**
    * \brief Deletes entry in position table
    */

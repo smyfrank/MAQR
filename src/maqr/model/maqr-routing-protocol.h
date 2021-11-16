@@ -135,10 +135,31 @@ public:
    */
   virtual void SetIpv4 (Ptr<Ipv4> ipv4);
 
+
+
+
+
+
+  /**
+   * \brief Process Hello packet, then update neighbor table
+   */
   virtual void ReceiveHello (Ptr<Socket> socket);
+  /**
+   * \brief Update neighbor table
+   */
   virtual void UpdateNeighbor (Ipv4Address origin, float qValue, Vector2D pos);
+  /**
+   * \brief Send Hello packet
+   */
   virtual void SendHello ();
-  virtual void IsMyOwnAddress (Ipv4Address origin);
+  /**
+   * \brief Schedule Hello timer
+   */
+  void HelloTimerExpire();
+  /**
+   * \brief Judge whether origin is one of its own Ipv4Address
+   */
+  virtual bool IsMyOwnAddress (Ipv4Address origin);
 
   void Send (Ptr<Ipv4Route>, Ptr<const Packet>, const Ipv4Header &);
   /// Notify that packet is dropped for some reason
@@ -147,7 +168,7 @@ public:
   // IP protocol
   Ptr<Ipv4> m_ipv4;
   // Raw unicast socket per each IP interface, map socket ->iface address (IP + mask)
-  std::map<Ptr<Socket>, Ipv4InterfaceAddress> m_socketAddressed;
+  std::map<Ptr<Socket>, Ipv4InterfaceAddress> m_socketAddresses;
   // Loopback device used to defer route request until a route is found
   Ptr<NetDevice> m_lo;
   // Nodes IP address
@@ -168,6 +189,8 @@ public:
   QLearning m_qLearning;
   // Hello interval
   Time m_helloInterval;
+  // Hello timer
+  Timer m_helloIntervalTimer;
 
 
 

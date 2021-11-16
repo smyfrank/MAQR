@@ -28,7 +28,7 @@ Time Neighbors::GetEntryUpdateTime (Ipv4Address ip)
   return i->second.m_updatedTime;
 }
 
-void Neighbors::AddEntry (Ipv4Address ip, Neighbor& nb)
+void Neighbors::AddEntry (Ipv4Address ip, Neighbor nb)
 {
   auto i = m_nbTable.find(ip);
   if(i != m_nbTable.end() || ip == i->first)
