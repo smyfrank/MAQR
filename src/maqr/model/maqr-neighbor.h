@@ -32,7 +32,7 @@ public:
    * \brief constructor
    * \param delay the delay time for purging the list of neighbors
    */
-   Neighbors (Time delay);
+   Neighbors (Time delay = Seconds(1));
    /// Neighbor description
    struct Neighbor
    {
@@ -41,17 +41,17 @@ public:
      /// Neighbor MAC address
      Mac48Address m_hardwareAddress;
      /// Neighbor expire time
-     Time m_expireTime;
+     Time m_updatedTime;
      /// Neighbor close indicator
      bool m_close;
+     // Neighbor position
+     Vector2D m_position;
      /// Neighbor queue length
      float m_queRatio;
      /// Neighbor moving direction
      float m_direction;
      /// Neighbor moving speed
      float m_speed;
-     /// Neighbor energy ratio
-     float m_energyRatio;
 
      /**
       * \brief Neighbor structure constructor
@@ -61,64 +61,73 @@ public:
       * \param queue
       * \param direction
       * \param speed
-      * \param energy
       */
-      Neighbor (Ipv4Address ip, Mac48Address mac, Time t, float queue,
-               float direction, float speed, float energy) :
+      Neighbor (Ipv4Address ip, Mac48Address mac, Time t, Vector2D pos, float queue,
+               float direction, float speed) :
            m_neighborAddress(ip),
            m_hardwareAddress(mac),
-           m_expireTime(t),
+           m_updatedTime(t),
            m_close(false),
+           m_position(pos),
            m_queRatio(queue),
            m_direction(direction),
-           m_speed(speed),
-           m_energyRatio(energy)
+           m_speed(speed)
       {
 
       }
    };
-   /**
-   * Return expire time for neighbor node with address addr, if exists, else return 0.
-   * \param addr the IP address of the neighbor node
-   * \returns the expire time for the neighbor node
+
+  /**
+   * \brief Gets the last time the entry was updated
+   * \param id Ipv4Address to get time of update from
+   * \return Time of last update to the neighbor
    */
-   Time GetExpireTime (Ipv4Address addr);
-   /**
-   * Check that node with address addr is neighbor
-   * \param addr the IP address to check
-   * \returns true if the node with IP address is a neighbor
+  Time GetEntryUpdateTime (Ipv4Address id);
+  /**
+   * \brief Adds entry in the neighbor table
    */
-   bool IsNeighbor (Ipv4Address addr);
+  void AddEntry (Ipv4Address ip, Neighbor& nb);
+  /**
+   * \brief Deletes entry in position table
+   */
+  void DeleteEntry (Ipv4Address ip);
+  /**
+   * \brief Gets position from neighbor table
+   */
+  Vector2D GetPosition(Ipv4Address ip);
 
-   void SetExpireTime (std::vector<Neighbor>::iterator it, Time expire);
+  Vector2D GetInvalidPosition()
+  {
+    return Vector2D(-1, -1);
+  }
 
-   // TODO: calculation of queue, direction, speed, energy.
-   float GetQueRatio(Ipv4Address addr);
+  /**
+   * \brief Gets queue ratio of ip
+   */
+  float GetQueueRatio(Ipv4Address ip);
+  /**
+   * \brief Gets direction of neighbor ip
+   */
+  float GetDirection(Ipv4Address ip);
+  /**
+   * \brief Gets absolute speed of neighbor ip
+   */
+  float GetSpeed(Ipv4Address ip);
+  
+  /**
+   * \brief Checks if a node is a neighbor
+   */
+  bool IsNeighbor(Ipv4Address ip);
+  /**
+   * \brief Remove entries with expired lieftime
+   */
+  void Purge();
+  /**
+   * \brief clears all entries
+   */
+  void Clear();
+  
 
-   void SetQueRatio(std::vector<Neighbor>::iterator it, float que);
-
-   float GetDirection(Ipv4Address addr);
-
-   void SetDirection(std::vector<Neighbor>::iterator it, float dir);
-
-   float GetSpeed(Ipv4Address addr);
-
-   void SetSpeed(std::vector<Neighbor>::iterator it, float sp);
-
-   float GetEnergyRatio(Ipv4Address addr);
-
-   void SetEnergyRatio(std::vector<Neighbor>::iterator it, float energyRatio);
-
-   void UpdateAll(Ipv4Address addr, Time expire, float que, float dir, float sp, float energy);
-   /// Remove all expired entries
-   void Purge ();
-   /// Schedule m_ntimer.
-   void ScheduleTimer ();
-   /// Remove all entries
-   void Clear ()
-   {
-     m_nb.clear ();
-   }
 
    /**
    * Add ARP cache to be used to allow layer 2 notifications processing
@@ -162,9 +171,9 @@ private:
   /// TX error callback
   Callback<void, WifiMacHeader const &> m_txErrorCallback;
   /// Timer for neighbor's list. Schedule Purge().
-  Timer m_ntimer;
+  Time m_entryLifeTime;
   /// vector of entries
-  std::vector<Neighbor> m_nb;
+  std::map<Ipv4Address, Neighbor> m_nbTable;
   /// list of ARP cached to be used for layer 2 notifications processing
   std::vector<Ptr<ArpCache>> m_arp;
 

@@ -29,5 +29,10 @@ void RoutingProtocol::ReceiveHello(Ptr<Socket> socket)
   UpdateNeighbor(sender, maxQ, curPos);
 }
 
+void RoutingProtocol::UpdateNeighbor(Ipv4Address origin, float qValue, Vector2D pos)
+{
+  
+}
+
 } // namespace maqr
 } // namespace ns3

@@ -146,7 +146,7 @@ public:
 
   // IP protocol
   Ptr<Ipv4> m_ipv4;
-  // Raw unicast socket per each IP interface, map sockst ->iface address (IP + mask)
+  // Raw unicast socket per each IP interface, map socket ->iface address (IP + mask)
   std::map<Ptr<Socket>, Ipv4InterfaceAddress> m_socketAddressed;
   // Loopback device used to defer route request until a route is found
   Ptr<NetDevice> m_lo;

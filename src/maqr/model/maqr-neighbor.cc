@@ -13,181 +13,121 @@ NS_LOG_COMPONENT_DEFINE("MaqrNeighbors");
 
 namespace maqr {
 Neighbors::Neighbors(Time delay)
-  : m_ntimer(Timer::CANCEL_ON_DESTROY)
+  : m_entryLifeTime(delay)
 {
-  m_ntimer.SetDelay(delay);
-  m_ntimer.SetFunction(&Neighbors::Purge, this);
   m_txErrorCallback = MakeCallback(&Neighbors::ProcessTxError, this);
 }
 
-bool Neighbors::IsNeighbor (Ipv4Address addr)
+Time Neighbors::GetEntryUpdateTime (Ipv4Address ip)
 {
-  Purge ();
-  for(std::vector<Neighbor>::const_iterator i = m_nb.begin(); i != m_nb.end(); ++i)
-    {
-      if(i->m_neighborAddress == addr)
-        {
-          return true;
-        }
-    }
+  if (ip == Ipv4Address::GetZero ())
+  {
+    return Time (Seconds (0));
+  }
+  auto i = m_nbTable.find(ip);
+  return i->second.m_updatedTime;
+}
+
+void Neighbors::AddEntry (Ipv4Address ip, Neighbor& nb)
+{
+  auto i = m_nbTable.find(ip);
+  if(i != m_nbTable.end() || ip == i->first)
+  {
+    m_nbTable.erase(ip);
+    m_nbTable.insert(std::make_pair(ip, Neighbor(nb)));
+    return;
+  }
+  m_nbTable.insert(std::make_pair(ip, Neighbor(nb)));
+}
+
+void Neighbors::DeleteEntry(Ipv4Address ip)
+{
+  m_nbTable.erase(ip);
+}
+
+Vector2D Neighbors::GetPosition(Ipv4Address ip)
+{
+  auto i = m_nbTable.find(ip);
+  if(i != m_nbTable.end())
+  {
+    return i->second.m_position;
+  }
+  return GetInvalidPosition();
+}
+
+float Neighbors::GetQueueRatio(Ipv4Address ip)
+{
+  auto i = m_nbTable.find(ip);
+  if(i != m_nbTable.end())
+  {
+    return i->second.m_queRatio;
+  }
+  return -1.0;
+}
+
+float Neighbors::GetDirection(Ipv4Address ip)
+{
+  auto i = m_nbTable.find(ip);
+  if(i != m_nbTable.end())
+  {
+    return i->second.m_direction;
+  }
+  return -1.0;
+}
+
+float Neighbors::GetSpeed(Ipv4Address ip)
+{
+  auto i = m_nbTable.find(ip);
+  if(i != m_nbTable.end())
+  {
+    return i->second.m_speed;
+  }
+  return -1.0;
+}
+
+bool Neighbors::IsNeighbor(Ipv4Address ip)
+{
+  auto i = m_nbTable.find(ip);
+  if(i != m_nbTable.end() || ip == i->first)
+  {
+    return true;
+  }
   return false;
 }
 
-Time Neighbors::GetExpireTime (Ipv4Address addr)
+void Neighbors::Purge()
 {
-  Purge();
-  for(std::vector<Neighbor>::const_iterator i = m_nb.begin(); i != m_nb.end(); ++i)
-    {
-      if(i->m_neighborAddress == addr)
-        {
-          return (i->m_expireTime - Simulator::Now());
-        }
-    }
-  return Seconds(0);
-}
-
-void Neighbors::SetExpireTime (std::vector<Neighbor>::iterator it, Time expire)
-{
-  it->m_expireTime = std::max(expire + Simulator::Now(), it->m_expireTime);
-}
-
-float Neighbors::GetQueRatio (Ipv4Address addr)
-{
-  Purge();
-  for(std::vector<Neighbor>::const_iterator i = m_nb.begin(); i != m_nb.end(); ++i)
-    {
-      if(i->m_neighborAddress == addr)
-        {
-          return i->m_queRatio;
-        }
-    }
-  return -1.0;
-}
-
-void Neighbors::SetQueRatio (std::vector<Neighbor>::iterator it, float que)
-{
-  it->m_queRatio = que;
-}
-
-float Neighbors::GetDirection (Ipv4Address addr)
-{
-  Purge();
-  for(std::vector<Neighbor>::const_iterator i = m_nb.begin(); i != m_nb.end(); ++i)
-    {
-      if(i->m_neighborAddress == addr)
-        {
-          return i->m_direction;
-        }
-    }
-  return -1.0;
-}
-
-void Neighbors::SetDirection (std::vector<Neighbor>::iterator it, float dir)
-{
-  it->m_direction = dir;
-}
-
-float Neighbors::GetSpeed (Ipv4Address addr)
-{
-  Purge();
-  for(std::vector<Neighbor>::const_iterator i = m_nb.begin(); i != m_nb.end(); ++i)
-    {
-      if(i->m_neighborAddress == addr)
-        {
-          return i->m_speed;
-        }
-    }
-  return -1.0;
-}
-
-void Neighbors::SetSpeed (std::vector<Neighbor>::iterator it, float sp)
-{
-  it->m_speed = sp;
-}
-
-float Neighbors::GetEnergyRatio (Ipv4Address addr)
-{
-  Purge();
-  for(std::vector<Neighbor>::const_iterator i = m_nb.begin(); i != m_nb.end(); ++i)
-    {
-      if(i->m_neighborAddress == addr)
-        {
-          return i->m_energyRatio;
-        }
-    }
-  return -1.0;
-}
-
-void Neighbors::SetEnergyRatio (std::vector<Neighbor>::iterator it, float energyRatio)
-{
-  it->m_energyRatio = energyRatio;
-}
-
-void Neighbors::UpdateAll (Ipv4Address addr, Time expire, float que, float dir, float sp, float energy)
-{
-  for(std::vector<Neighbor>::iterator i = m_nb.begin(); i != m_nb.end(); ++i)
-    {
-      if(i->m_neighborAddress == addr)
-        {
-          SetExpireTime (i, expire);
-          SetQueRatio (i, que);
-          SetDirection (i, dir);
-          SetSpeed (i, sp);
-          SetEnergyRatio (i, energy);
-          if(i->m_hardwareAddress == Mac48Address())
-            {
-              i->m_hardwareAddress = LookupMacAddress (i->m_neighborAddress);
-            }
-          return;
-        }
-    }
-  NS_LOG_LOGIC ("Open link to " << addr);
-  Neighbor neighbor(addr, LookupMacAddress (addr), expire + Simulator::Now(), que,
-                     dir, sp, energy);
-  m_nb.push_back(neighbor);
-  Purge();
-}
-
-/**
- * \brief CloseNeighbor structure
- */
-struct CloseNeighbor
-{
-  bool operator() (const Neighbors::Neighbor& nb) const
+  if(m_nbTable.empty())
   {
-    return ((nb.m_expireTime < Simulator::Now()) || nb.m_close);
+    return;
   }
-};
-
-void Neighbors::Purge ()
-{
-  if(m_nb.empty())
+  std::list<Ipv4Address> toErase;
+  for(auto i = m_nbTable.begin(); i != m_nbTable.end(); ++i)
+  {
+    if(m_entryLifeTime + GetEntryUpdateTime(i->first) <= Simulator::Now())
     {
-      return;
+      toErase.insert(toErase.begin(), i->first);
     }
+  }
+  toErase.unique();
 
-  CloseNeighbor pred;
-  if(!m_handleLinkFailure.IsNull())
-    {
-      for(std::vector<Neighbor>::iterator j = m_nb.begin(); j != m_nb.end(); ++j)
-        {
-          if(pred(*j))
-            {
-              NS_LOG_LOGIC("Close link to " << j->m_neighborAddress);
-              m_handleLinkFailure(j->m_neighborAddress);
-            }
-        }
-    }
-  m_nb.erase(std::remove_if (m_nb.begin(), m_nb.end(), pred), m_nb.end());
-  m_ntimer.Cancel();
-  m_ntimer.Schedule();
+  for(auto i = toErase.begin(); i != toErase.end(); ++i)
+  {
+    m_nbTable.erase(*i);
+  }
 }
 
-void Neighbors::ScheduleTimer ()
+void Neighbors::Clear()
 {
-  m_ntimer.Cancel();
-  m_ntimer.Schedule();
+  m_nbTable.clear();
 }
+
+
+
+
+
+
+
 
 void Neighbors::AddArpCache (Ptr<ArpCache> a)
 {
@@ -219,11 +159,11 @@ void Neighbors::ProcessTxError (WifiMacHeader const & hdr)
 {
   Mac48Address addr = hdr.GetAddr1 ();
 
-  for (std::vector<Neighbor>::iterator i = m_nb.begin (); i != m_nb.end (); ++i)
+  for (auto i = m_nbTable.begin(); i != m_nbTable.end (); ++i)
     {
-      if (i->m_hardwareAddress == addr)
+      if (i->second.m_hardwareAddress == addr)
         {
-          i->m_close = true;
+          i->second.m_close = true;
         }
     }
   Purge ();
