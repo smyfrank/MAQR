@@ -35,7 +35,7 @@ class RoutingProtocol : public Ipv4RoutingProtocol
 {
 public:
   /**
-   * \brief Get the type ID
+   * \brief Get the type ID, set metadata
    * \return the object TypeId
    */
   static TypeId GetTypeId(void);
@@ -43,6 +43,7 @@ public:
 
   RoutingProtocol();
   virtual ~RoutingProtocol();
+  // Destructor implementation
   virtual void DoDispose();
 
   /**
@@ -134,9 +135,14 @@ public:
    * Typically, invoked directly or indirectly from ns3::Ipv4::SetRoutingProtocol
    */
   virtual void SetIpv4 (Ptr<Ipv4> ipv4);
+  // Create loopback route for given header. route entry dest: hdr's dest, gateway:127.0.0.1, source:local
+  Ptr<Ipv4Route> LoopbackRoute(const Ipv4Header &hdr, Ptr<NetDevice> oif) const;
 
 
-
+  /**
+   * \brief Start protocol operation
+   */
+  void Start();
 
 
 
@@ -173,12 +179,17 @@ public:
   Ptr<NetDevice> m_lo;
   // Nodes IP address
   Ptr<NetDevice> m_mainAddress;
+  // The node's IP address
+  Ipv4Address m_selfIpv4Address;
   // Routing Table
   RoutingTable m_routingTable;
   // Neighbor table
   Neighbors m_nb;
+
   // A "drop-front" queue used by the routing layer to buffer packets to which it does not have a route
-  RequestQueue m_rqueue;
+  RequestQueue m_queue;
+  uint32_t m_maxQueueLen;
+  Time m_maxQueueTime;
 
   // Unicast callbackfor own packets
   UnicastForwardCallback m_scb;
@@ -191,8 +202,11 @@ public:
   Time m_helloInterval;
   // Hello timer
   Timer m_helloIntervalTimer;
+  // uniform random variable
+  Ptr<UniformRandomVariable> m_uniformRandomVariable;
 
-
+  // Pointer to mobility handler
+  Ptr<MobilityModel> m_mobility;
 
 };
 

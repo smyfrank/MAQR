@@ -10,6 +10,91 @@ NS_OBJECT_ENSURE_REGISTERED(RoutingProtocol);
 
 const uint32_t RoutingProtocol::MAQR_PORT = 5678;
 
+// Set metadata
+TypeId RoutingProtocol::GetTypeId(void)
+{
+  static TypeId tid = TypeId("ns3::maqr::RoutingProtocol")
+    .SetParent<Ipv4RoutingProtocol>()
+    .SetGroupName("MAQR")
+    .AddConstructor<RoutingProtocol>()
+    // the access of internal member objects of a simulation
+    .AddAttribute("HelloInterval", "Periodic interval for hello packet",
+                  TimeValue(Seconds(1)),
+                  MakeTimeAccessor(&RoutingProtocol::m_helloInterval), MakeTimeChecker())
+    ;
+}
+
+RoutingProtocol::RoutingProtocol()
+  : m_helloInterval(Seconds(1)),
+    m_maxQueueLen(64),
+    m_maxQueueTime(Seconds(30)),
+    m_queue(m_maxQueueLen, m_maxQueueTime),
+    m_helloIntervalTimer(Timer::CANCEL_ON_DESTROY),
+    m_qLearning(0.3, 0.9, 0.3)
+{
+  m_nb = Neighbors(Seconds(2));  // neighbor entry lifetime
+  m_uniformRandomVariable = CreateObject<UniformRandomVariable> ();
+}
+
+RoutingProtocol::~RoutingProtocol()
+{
+
+}
+
+void RoutingProtocol::DoDispose()
+{
+  m_ipv4 = 0;
+  for(auto iter = m_socketAddresses.begin(); iter != m_socketAddresses.end(); ++iter)
+  {
+    iter->first->Close();
+  }
+  m_socketAddresses.clear();
+  Ipv4RoutingProtocol::DoDispose();
+}
+
+Ptr<Ipv4Route> RoutingProtocol::LoopbackRoute(const Ipv4Header &hdr, Ptr<NetDevice> oif) const
+{
+  NS_LOG_FUNCTION (this << hdr);
+  NS_ASSERT(m_lo != 0);
+  Ptr<Ipv4Route> rt = Create<Ipv4Route>();
+  rt->SetDestination(hdr.GetDestination());
+  auto j = m_socketAddresses.cbegin();
+  if(oif)
+  {
+    // Iterate to find an address on the oif device
+    for(j = m_socketAddresses.cbegin(); j != m_socketAddresses.cend(); ++j)
+    {
+      Ipv4Address addr = j->second.GetLocal();
+      int32_t interface = m_ipv4->GetInterfaceForAddress(addr);
+      if(oif == m_ipv4->GetNetDevice(static_cast<uint32_t>(interface)))
+      {
+        rt->SetSource(addr);
+        break;
+      }
+    }
+  }
+  else
+  {
+    rt->SetSource(j->second.GetLocal());
+  }
+  NS_ASSERT_MSG(rt->GetSource() != Ipv4Address(), "Valid MAQR source address not found");
+  rt->SetGateway(Ipv4Address("127.0.0.1"));
+  rt->SetOutputDevice(m_lo);
+  return rt;
+}
+
+void RoutingProtocol::Start()
+{
+  m_scb = MakeCallback(&RoutingProtocol::Send, this);
+  m_ecb = MakeCallback(&RoutingProtocol::Drop, this);
+  m_helloIntervalTimer.SetFunction(&RoutingProtocol::SendHello, this);
+  m_helloIntervalTimer.Schedule(Seconds(1));
+
+  m_mobility = this->GetObject<Node>()->GetObject<MobilityModel>();
+
+  m_selfIpv4Address = m_ipv4->GetAddress(1, 0).GetLocal();
+}
+
 void RoutingProtocol::ReceiveHello(Ptr<Socket> socket)
 {
   NS_LOG_FUNCTION(this << socket);

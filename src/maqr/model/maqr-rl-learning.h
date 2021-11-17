@@ -67,13 +67,10 @@ private:
 class QLearning
 {
 public:
-  QLearning(float alpha, float gamma, float epsilon, 
-            Neighbors nb, std::map<Ipv4Address, std::map<Ipv4Address, QValueEntry*>> qt)
+  QLearning(float alpha, float gamma, float epsilon)
   : m_learningRate(alpha),
     m_discoutRate(gamma),
-    m_epsilon(epsilon),
-    m_neighbors(nb),
-    m_QTable(qt)
+    m_epsilon(epsilon)
   {
   }
   virtual ~QLearning()
@@ -119,7 +116,6 @@ private:
   float m_discoutRate;
   float m_epsilon;
   Time m_neighborReliabilityTimeout;
-  Neighbors m_neighbors;
   std::map<Ipv4Address, std::map<Ipv4Address, QValueEntry*>> m_QTable;
 };
 
