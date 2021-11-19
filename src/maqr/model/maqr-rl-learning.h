@@ -67,10 +67,11 @@ private:
 class QLearning
 {
 public:
-  QLearning(float alpha, float gamma, float epsilon)
+  QLearning(float alpha, float gamma, float epsilon, Time neighborLifeTime)
   : m_learningRate(alpha),
     m_discoutRate(gamma),
-    m_epsilon(epsilon)
+    m_epsilon(epsilon),
+    m_neighborReliabilityTimeout(neighborLifeTime)
   {
   }
   virtual ~QLearning()
