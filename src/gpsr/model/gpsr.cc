@@ -150,7 +150,7 @@ RoutingProtocol::SetLS (Ptr<LocationService> locationService)
   m_locationService = locationService;
 }
 
-
+// local deliver or call Forward() to send forward
 bool RoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header, Ptr<const NetDevice> idev,
                                   UnicastForwardCallback ucb, MulticastForwardCallback mcb,
                                   LocalDeliverCallback lcb, ErrorCallback ecb)
@@ -589,7 +589,7 @@ void RoutingProtocol::NotifyAddAddress (uint32_t interface, Ipv4InterfaceAddress
     {
       return;
     }
-  if (l3->GetNAddresses ((interface) == 1))
+  if (l3->GetNAddresses  ((interface) == 1))
     {
       Ipv4InterfaceAddress iface = l3->GetAddress (interface, 0);
       Ptr<Socket> socket = FindSocketWithInterfaceAddress (iface);
@@ -858,6 +858,7 @@ RoutingProtocol::AddHeaders (Ptr<Packet> p, Ipv4Address source, Ipv4Address dest
 
 }
 
+// call UnicastForwardCallback ucb to forward
 bool
 RoutingProtocol::Forwarding (Ptr<const Packet> packet, const Ipv4Header & header,
                              UnicastForwardCallback ucb, ErrorCallback ecb)
