@@ -137,6 +137,10 @@ public:
   virtual void SetIpv4 (Ptr<Ipv4> ipv4);
   // Create loopback route for given header. route entry dest: hdr's dest, gateway:127.0.0.1, source:local
   Ptr<Ipv4Route> LoopbackRoute(const Ipv4Header &hdr, Ptr<NetDevice> oif) const;
+  // Get Protocol number
+  uint32_t GetProtocolNumber(void) const;
+  // m_socketAddresses maps socket->InterfaceAddress, reverse find socket with interface address
+  Ptr<Socket> FindSocketWithInterfaceAddress(Ipv4InterfaceAddress addr) const;
 
 
   /**

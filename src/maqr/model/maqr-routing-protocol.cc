@@ -1,4 +1,8 @@
 #include "maqr-routing-protocol.h"
+#include "ns3/udp-socket-factory.h"
+#include "ns3/uinteger.h"
+#include "ns3/wifi-net-device.h"
+#include "ns3/adhoc-wifi-mac.h"
 
 namespace ns3 {
 
@@ -30,7 +34,7 @@ RoutingProtocol::RoutingProtocol()
     m_maxQueueTime(Seconds(30)),
     m_queue(m_maxQueueLen, m_maxQueueTime),
     m_helloIntervalTimer(Timer::CANCEL_ON_DESTROY),
-    m_qLearning(0.3, 0.9, 0.3)
+    m_qLearning(0.3, 0.9, 0.3, Seconds(1.1))
 {
   m_nb = Neighbors(Seconds(2));  // neighbor entry lifetime
   m_uniformRandomVariable = CreateObject<UniformRandomVariable> ();
@@ -50,6 +54,162 @@ void RoutingProtocol::DoDispose()
   }
   m_socketAddresses.clear();
   Ipv4RoutingProtocol::DoDispose();
+}
+
+void RoutingProtocol::NotifyInterfaceUp(uint32_t interface)
+{
+  NS_LOG_FUNCTION(this << m_ipv4->GetAddress(interface, 0).GetLocal());
+  Ptr<Ipv4L3Protocol> l3 = m_ipv4->GetObject<Ipv4L3Protocol>();
+  if(l3->GetNAddresses(interface) > 1)
+  {
+    NS_LOG_WARN("MAQR does not work with more than one address per each interface.");
+  }
+  Ipv4InterfaceAddress iface = l3->GetAddress(interface, 0);
+  if(iface.GetLocal() == Ipv4Address("127.0.0.1"))
+  {
+    return;
+  }
+
+  // Create a socket to listen only on this interface
+  Ptr<Socket> socket = Socket::CreateSocket(GetObject<Node>(), UdpSocketFactory::GetTypeId());
+  NS_ASSERT(socket != 0);
+  /**
+   * \TODO: SetRecvCallback
+   */
+  socket->SetRecvCallback(MakeCallback(&RoutingProtocol::ReceiveHello, this));
+  socket->Bind(InetSocketAddress(Ipv4Address::GetAny(), MAQR_PORT));
+  socket->BindToNetDevice(l3->GetNetDevice(interface));
+  socket->SetAllowBroadcast(true);
+  socket->SetAttribute("IpTtl", UintegerValue(1));
+  m_socketAddresses.insert(std::make_pair(socket, iface));
+
+  // Allow neighbor manager use this interface for layer 2 feedback if possible
+  Ptr<NetDevice> dev = m_ipv4->GetNetDevice(m_ipv4->GetInterfaceForAddress(iface.GetLocal()));
+  Ptr<WifiNetDevice> wifi = dev->GetObject<WifiNetDevice>();
+  if(wifi == 0)
+  {
+    return;
+  }
+  Ptr<WifiMac> mac = wifi->GetMac();
+  if(mac == 0)
+  {
+    return;
+  }
+  mac->TraceConnectWithoutContext("TxErrHeader", m_nb.GetTxErrorCallback());
+}
+
+void RoutingProtocol::NotifyInterfaceDown(uint32_t interface)
+{
+  NS_LOG_FUNCTION(this << m_ipv4->GetAddress(interface, 0).GetLocal());
+
+  // Disable layer 2 link state monitoring (if possible) which registed in NotifyInterfaceUp
+  Ptr<Ipv4L3Protocol> l3 = m_ipv4->GetObject<Ipv4L3Protocol>();
+  Ptr<NetDevice> dev = l3->GetNetDevice(interface);
+  Ptr<WifiNetDevice> wifi = l3->GetObject<WifiNetDevice>();
+  if(wifi != 0)
+  {
+    Ptr<WifiMac> mac = wifi->GetMac()->GetObject<AdhocWifiMac>();
+    if(mac != 0)
+    {
+      mac->TraceDisconnectWithoutContext("TxErrHeader", m_nb.GetTxErrorCallback());
+    }
+  }
+
+  // Close socket
+  Ptr<Socket> socket = FindSocketWithInterfaceAddress(m_ipv4->GetAddress(interface, 0));
+  NS_ASSERT(socket);
+  socket->Close();
+  m_socketAddresses.erase(socket);
+  if(m_socketAddresses.empty())
+  {
+    NS_LOG_LOGIC("No maqr interfaces");
+    m_nb.Clear();
+    return;
+  }
+}
+
+void RoutingProtocol::NotifyAddAddress(uint32_t interface, Ipv4InterfaceAddress address)
+{
+  NS_LOG_FUNCTION(this << " interface " << interface << " address " << address);
+  Ptr<Ipv4L3Protocol> l3 = m_ipv4->GetObject<Ipv4L3Protocol>();
+  if(!l3->IsUp(interface))
+  {
+    return;
+  }
+  if(l3->GetNAddresses(interface) == 1)
+  {
+    Ipv4InterfaceAddress iface = l3->GetAddress(interface, 0);
+    Ptr<Socket> socket = FindSocketWithInterfaceAddress(iface);
+    if(!socket)
+    {
+      if(iface.GetLocal() == Ipv4Address("127.0.0.1"))
+      {
+        return;
+      }
+      // Create a socket to listen only on the interface
+      Ptr<Socket> socket = Socket::CreateSocket(GetObject<Node>(), UdpSocketFactory::GetTypeId());
+      NS_ASSERT(socket != 0);
+      socket->SetRecvCallback(MakeCallback(&RoutingProtocol::ReceiveHello, this));
+      socket->BindToNetDevice(l3->GetNetDevice(interface));
+      // Bind to any IP address so that broadcasts can be received
+      socket->Bind(InetSocketAddress(Ipv4Address::GetAny(), MAQR_PORT));
+      socket->SetAllowBroadcast(true);
+      m_socketAddresses.insert(std::make_pair(socket, iface));
+
+      Ptr<NetDevice> dev = m_ipv4->GetNetDevice(m_ipv4->GetInterfaceForAddress(iface.GetLocal()));
+    }
+  }
+  else
+  {
+    NS_LOG_LOGIC("MAQR does not work with more than one address per each interface. Ignore added address");
+  }
+}
+
+void RoutingProtocol::NotifyRemoveAddress(uint32_t i, Ipv4InterfaceAddress address)
+{
+  NS_LOG_FUNCTION(this);
+  Ptr<Socket> socket = FindSocketWithInterfaceAddress(address);
+  if(socket)
+  {
+    m_socketAddresses.erase(socket);
+    Ptr<Ipv4L3Protocol> l3 = m_ipv4->GetObject<Ipv4L3Protocol>();
+    if(l3->GetNAddresses(i))
+    {
+      Ipv4InterfaceAddress iface = l3->GetAddress(i, 0);
+      // Create a socket to listen only on this interface
+      Ptr<Socket> socket = Socket::CreateSocket(GetObject<Node>(), UdpSocketFactory::GetTypeId());
+      NS_ASSERT(socket != 0);
+      socket->SetRecvCallback(MakeCallback(&RoutingProtocol::ReceiveHello, this));
+      // Bind to any IO address so that broadcasts can be received
+      socket->Bind(InetSocketAddress(Ipv4Address::GetAny(), MAQR_PORT));
+      socket->SetAllowBroadcast(true);
+      m_socketAddresses.insert(std::make_pair(socket, iface));
+
+      Ptr<NetDevice> dev = m_ipv4->GetNetDevice(m_ipv4->GetInterfaceForAddress(iface.GetLocal()));
+    }
+    if(m_socketAddresses.empty())
+    {
+      NS_LOG_LOGIC("No maqr interface");
+      m_nb.Clear();
+      return;
+    }
+  }
+  else
+  {
+    NS_LOG_LOGIC("Remove address not participating in MAQR operation");
+  }
+}
+
+/**
+ * \TODO: SetIpv4 sets routing protocol attrubutes and schedules Start()
+ */
+void RoutingProtocol::SetIpv4(Ptr<Ipv4> ipv4)
+{
+  NS_ASSERT(ipv4 != 0);
+  NS_ASSERT(m_ipv4 == 0);
+  m_ipv4 = ipv4;
+
+  Simulator::ScheduleNow(&RoutingProtocol::Start, this);
 }
 
 Ptr<Ipv4Route> RoutingProtocol::LoopbackRoute(const Ipv4Header &hdr, Ptr<NetDevice> oif) const
@@ -83,11 +243,32 @@ Ptr<Ipv4Route> RoutingProtocol::LoopbackRoute(const Ipv4Header &hdr, Ptr<NetDevi
   return rt;
 }
 
+uint32_t RoutingProtocol::GetProtocolNumber(void) const
+{
+  return MAQR_PORT;
+}
+
+Ptr<Socket> RoutingProtocol::FindSocketWithInterfaceAddress(Ipv4InterfaceAddress addr) const
+{
+  NS_LOG_FUNCTION(this << addr);
+  for(auto j = m_socketAddresses.cbegin(); j != m_socketAddresses.cend(); ++j)
+  {
+    Ptr<Socket> socket = j->first;
+    Ipv4InterfaceAddress iface = j->second;
+    if(iface == addr)
+    {
+      return socket;
+    }
+  }
+  Ptr<Socket> socket;
+  return socket;
+}
+
 void RoutingProtocol::Start()
 {
   m_scb = MakeCallback(&RoutingProtocol::Send, this);
   m_ecb = MakeCallback(&RoutingProtocol::Drop, this);
-  m_helloIntervalTimer.SetFunction(&RoutingProtocol::SendHello, this);
+  m_helloIntervalTimer.SetFunction(&RoutingProtocol::HelloTimerExpire, this);
   m_helloIntervalTimer.Schedule(Seconds(1));
 
   m_mobility = this->GetObject<Node>()->GetObject<MobilityModel>();
