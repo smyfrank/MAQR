@@ -56,6 +56,20 @@ void RoutingProtocol::DoDispose()
   Ipv4RoutingProtocol::DoDispose();
 }
 
+Ptr<Ipv4Route> RoutingProtocol::RouteOutput(Ptr<Packet> p, const Ipv4Header &header, Ptr<NetDevice> oif,
+                                            Socket::SocketErrno &socketerr)
+{
+
+}
+
+bool RoutingProtocol::RouteInput(Ptr<const Packet> p, const Ipv4Header &header,
+                                 Ptr<const NetDevice> idev, UnicastForwardCallback ucb,
+                                 MulticastForwardCallback mcb, LocalDeliverCallback lcb,
+                                 ErrorCallback ecb)
+{
+  
+}
+
 void RoutingProtocol::NotifyInterfaceUp(uint32_t interface)
 {
   NS_LOG_FUNCTION(this << m_ipv4->GetAddress(interface, 0).GetLocal());
@@ -363,6 +377,20 @@ bool RoutingProtocol::IsMyOwnAddress (Ipv4Address src)
     }
   }
   return false;
+}
+
+void RoutingProtocol::Send(Ptr<Ipv4Route> route, Ptr<const Packet> packet, const Ipv4Header &header)
+{
+  Ptr<Ipv4L3Protocol> l3 = m_ipv4->GetObject<Ipv4L3Protocol>();
+  NS_ASSERT(l3 != 0);
+  Ptr<Packet> p = packet->Copy();
+  l3->Send(p, route->GetSource(), header.GetDestination(), header.GetProtocol(), route);
+}
+
+void RoutingProtocol::Drop(Ptr<const Packet> packet, const Ipv4Header &header, Socket::SocketErrno err)
+{
+  NS_LOG_DEBUG(m_mainAddress << " drop packet" << packet->GetUid() << " to "
+                             << header.GetDestination() << " from queue. Error" << err);
 }
 
 } // namespace maqr
