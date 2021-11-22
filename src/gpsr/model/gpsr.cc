@@ -282,12 +282,12 @@ RoutingProtocol::SendPacketFromQueue (Ipv4Address dst)
   QueueEntry queueEntry;
 
 
-  if (m_locationService->IsInSearch (dst))
+  if (m_locationService->IsInSearch (dst))  // return false all time
     {
       return false;
     }
 
-  if (!m_locationService->HasPosition (dst)) // Location-service stoped looking for the dst
+  if (!m_locationService->HasPosition (dst)) // return true all time, Location-service stoped looking for the dst
     {
       m_queue.DropPacketWithDst (dst);
       NS_LOG_LOGIC ("Location Service did not find dst. Drop packet to " << dst);
@@ -313,7 +313,7 @@ RoutingProtocol::SendPacketFromQueue (Ipv4Address dst)
         NS_LOG_LOGIC ("Fallback to recovery-mode. Packets to " << dst);
         recovery = true;
       }
-    if(recovery)
+    if(recovery)  // if no next hop is selected
       {
         
         Vector Position;
