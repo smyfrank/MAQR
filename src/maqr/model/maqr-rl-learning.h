@@ -32,10 +32,6 @@ public:
   {
     m_vValue = v;
   }
-  void SetSeqNum(uint32_t seq)
-  {
-    m_seqNum = seq;
-  }
   Ipv4Address GetDestination() const
   {
     return m_destination;
@@ -52,16 +48,11 @@ public:
   {
     return m_vValue;
   }
-  uint32_t GetSeqNum() const
-  {
-    return m_seqNum;
-  }
 private:
   Ipv4Address m_destination;
   Time m_lastSeen;
   float m_qValue;
   float m_vValue;
-  uint32_t m_seqNum;
 };
 
 class QLearning
@@ -110,6 +101,16 @@ public:
    * \TODO: detail design
    */
   float GetReward(Ipv4Address origin, Ipv4Address hop);
+  /**
+   * \brief Insert new (origin, next hop) entry if not exists
+   * \param origin the origin address (state)
+   * \param hop the next hop (action)
+   */
+  void InsertQEntry(Ipv4Address target, Ipv4Address hop, QValueEntry* qEntry);
+  /**
+   * \brief Purge outdate entries, erase (hop, QEntry*), target still exists
+   */
+  void Purge();
   
 
 private:

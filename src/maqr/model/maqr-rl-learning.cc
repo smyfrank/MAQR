@@ -13,7 +13,7 @@ void QLearning::PrintQTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit) co
     {
       *stream->GetStream() << std::setiosflags(std::ios::fixed) << dst->first << "\t\t"
                            << gw->first << "\t\t" << gw->second->GetqValue() << "\t\t"
-                           << gw->second->GetvValue() << "\t\t" << gw->second->GetSeqNum() << "\t\t"
+                           << gw->second->GetvValue() << "\t\t"
                            << std::setiosflags(std::ios::left) << std::setprecision(3)
                            << gw->second->GetLastSeen().As(unit) << "\n";
     }
@@ -85,6 +85,55 @@ Ipv4Address QLearning::GetNextHop(Ipv4Address target)
 float QLearning::GetReward(Ipv4Address origin, Ipv4Address hop)
 {
   return 0.0;
+}
+
+void QLearning::InsertQEntry(Ipv4Address target, Ipv4Address hop, QValueEntry* qEntry)
+{
+  if(m_QTable.find(target) != m_QTable.end())
+  {
+    auto i = m_QTable.find(target);
+    if(i->second.find(hop) != i->second.end())
+    {
+      return;
+    }
+    else
+    {
+      i->second.insert(std::make_pair(hop, qEntry));
+    }
+  }
+  else
+  {
+    m_QTable.insert(std::make_pair(target, std::map<Ipv4Address, QValueEntry*>()));
+    m_QTable[target].insert(std::make_pair(hop, qEntry));
+  }
+}
+
+void QLearning::Purge()
+{
+  std::vector<Ipv4Address> purgeVec;
+  for(auto i = m_QTable.begin(); i != m_QTable.end(); ++i)
+  {
+    for(auto j = i->second.begin(); j != i->second.end(); ++j)
+    {
+      if((Simulator::Now() - j->second->GetLastSeen()).GetSeconds() 
+      > m_neighborReliabilityTimeout.GetSeconds())
+      {
+        if(j->second != nullptr)
+        {
+          delete j->second;
+          j->second = nullptr;
+        }
+        purgeVec.emplace_back(j->first);
+      }
+    }
+
+    for(auto j = purgeVec.begin(); j != purgeVec.end(); ++j)
+    {
+      i->second.erase(*j);
+    }
+
+    purgeVec.clear();
+  }
 }
 
 } // namespace maqr
