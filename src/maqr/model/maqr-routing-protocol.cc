@@ -67,7 +67,95 @@ bool RoutingProtocol::RouteInput(Ptr<const Packet> p, const Ipv4Header &header,
                                  MulticastForwardCallback mcb, LocalDeliverCallback lcb,
                                  ErrorCallback ecb)
 {
-  
+  NS_LOG_FUNCTION (this << p->GetUid () << header.GetDestination() << idev->GetAddress ());
+  if (m_socketAddresses.empty ())
+  {
+    NS_LOG_LOGIC ("No maqr interfaces");
+    return false;
+  }
+  NS_ASSERT (m_ipv4 != 0);
+  NS_ASSERT (p != 0);
+  // Check if input device supports IP
+  NS_ASSERT (m_ipv4->GetInterfaceForDevice (idev) >= 0);
+  int32_t iif = m_ipv4->GetInterfaceForDevice (idev);
+  Ipv4Address dst = header.GetDestination ();
+  Ipv4Address origin = header.GetSource ();
+
+  // Duplicate of own packet
+  if (IsMyOwnAddress (origin))
+  {
+    return true;
+  }
+
+  if (dst.IsMulticast ())
+  {
+    return false;
+  }
+
+  // Broadcast local delivery/forward
+  for (auto j = m_socketAddresses.cbegin (); j != m_socketAddresses.end (); ++j)
+  {
+    Ipv4InterfaceAddress iface = j->second;
+    if (m_ipv4->GetInterfaceForAddress (iface.GetLocal ()) == iif)
+    {
+      if (dst == iface.GetBroadcast () || dst.IsBroadcast ())
+      {
+        Ptr<Packet> packet = p->Copy ();
+        if (lcb.IsNull () == false)
+        {
+          NS_LOG_LOGIC ("Broadcast local delivery to " << iface.GetLocal ());
+          lcb (p, header, iif);
+          // Fall through to additional processing
+        }
+        else
+        {
+          NS_LOG_ERROR ("Unable to deliver packet locally due to null callback "
+                        << p->GetUid () << " from " << origin);
+          ecb (p, header, Socket::ERROR_NOROUTETOHOST);
+        }
+        if (header.GetTtl () > 1)
+        {
+          NS_LOG_LOGIC ("Forward broadcast. TTL " << (uint16_t) header.GetTtl ());
+          /**
+           * \TODO: broadcast forward
+           */
+        }
+        else
+        {
+          NS_LOG_DEBUG ("TTL exceeded. Drop packet " << p->GetUid ());
+        }
+        return true;
+      }
+    }
+  }
+
+  // Unicast local delivery
+  if (m_ipv4->IsDestinationAddress (dst, iif))
+  {
+    if (lcb.IsNull () == false)
+    {
+      NS_LOG_LOGIC ("Unicast local delivery to " << dst);
+      lcb (p, header, iif);
+    }
+    else
+    {
+      NS_LOG_ERROR ("Unable to deliver packet locally due to null callback "
+                    << p->GetUid () << " from" << origin);
+      ecb (p, header, Socket::ERROR_NOROUTETOHOST);
+    }
+    return true;
+  }
+
+  // Check if input device supports IP forwarding
+  if (m_ipv4->IsForwarding (iif) == false)
+  {
+    NS_LOG_LOGIC ("Forwarding disable for this interface");
+    ecb (p, header, Socket::ERROR_NOROUTETOHOST);
+    return true;
+  }
+
+  // Unicast forward packet
+  return Forwarding (p, header, ucb, ecb);
 }
 
 void RoutingProtocol::NotifyInterfaceUp(uint32_t interface)

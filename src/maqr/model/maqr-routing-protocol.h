@@ -174,6 +174,8 @@ public:
   void Send (Ptr<Ipv4Route>, Ptr<const Packet>, const Ipv4Header &);
   /// Notify that packet is dropped for some reason
   void Drop (Ptr<const Packet>, const Ipv4Header &, Socket::SocketErrno);
+  // If route exists and valid, forward packet.
+  bool Forwarding (Ptr<const Packet> p, const Ipv4Header& header, UnicastForwardCallback ucb, ErrorCallback ecb);
 
   // IP protocol
   Ptr<Ipv4> m_ipv4;
