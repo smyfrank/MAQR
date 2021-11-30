@@ -57,8 +57,60 @@ void RoutingProtocol::DoDispose()
 }
 
 Ptr<Ipv4Route> RoutingProtocol::RouteOutput(Ptr<Packet> p, const Ipv4Header &header, Ptr<NetDevice> oif,
-                                            Socket::SocketErrno &socketerr)
+                                            Socket::SocketErrno &sockerr)
 {
+  NS_LOG_FUNCTION (this << header << (oif ? oif->GetIfIndex () : 0));
+  if (!p)
+  {
+    NS_LOG_DEBUG ("Packet is == 0");
+    return LoopbackRoute (header, oif);
+  }
+  if (m_socketAddresses.empty ())
+  {
+    sockerr = Socket::ERROR_NOROUTETOHOST;
+    NS_LOG_LOGIC ("No maqr interfaces");
+    Ptr<Ipv4Route> route;
+    return route;
+  }
+
+  // Generate Ipv4Route
+  sockerr = Socket::ERROR_NOTERROR;
+  Ptr<Ipv4Route> route = Create<Ipv4Route> ();
+  Ipv4Address dst = header.GetDestination ();
+  Ipv4Address nextHop;
+  if (m_nb.IsNeighbor (dst))
+  {
+    nextHop = dst;
+  }
+  else
+  {
+    nextHop = m_qLearning.GetNextHop (dst);
+  }
+  if (nextHop != Ipv4Address::GetZero ())
+  {
+    NS_LOG_DEBUG ("Destination: " << dst);
+    route->SetDestination (dst);
+    route->SetSource (header.GetSource ());
+    route->SetGateway (nextHop);
+    route->SetOutputDevice (m_ipv4->GetNetDevice (1)); // TODO
+    NS_ASSERT (route != 0);
+    NS_LOG_DEBUG ("Exist route to " << route->GetDestination () << " from interface" << route->GetSource ());
+    if (oif != 0 && route->GetOutputDevice () != oif)
+    {
+      NS_LOG_DEBUG ("Output device doesn't match. Dropped.");
+      sockerr = Socket::ERROR_NOROUTETOHOST;
+      return Ptr<Ipv4Route> ();
+    }
+    return route;
+  }
+
+  /**
+    Valid route not found, in this case we return loopback.
+    Actual route request will be deferred until packet will be fully formed,
+    routed to loopback, received from Loobback and passed to RouteInput (see below)
+    \TODO: DeferredRouteOutputTag0
+  */
+  return LoopbackRoute(header, oif);
 
 }
 
