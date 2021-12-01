@@ -533,5 +533,34 @@ void RoutingProtocol::Drop(Ptr<const Packet> packet, const Ipv4Header &header, S
                              << header.GetDestination() << " from queue. Error" << err);
 }
 
+bool RoutingProtocol::Forwarding (Ptr<const Packet> packet, const Ipv4Header& header,
+                                  UnicastForwardCallback ucb, ErrorCallback ecb)
+{
+  NS_LOG_FUNCTION (this);
+  Ipv4Address dst = header.GetDestination ();
+  Ipv4Address origin = header.GetSource ();
+  m_nb.Purge ();
+  m_qLearning.Purge ();
+  RoutingTableEntry toDst;
+  Ipv4Address nextHop = m_qLearning.GetNextHop (dst);
+  if (nextHop != Ipv4Address::GetZero ())
+  {
+    Ptr<NetDevice> oif = m_ipv4->GetObject<NetDevice> ();
+    Ptr<Ipv4Route> route = Create<Ipv4Route> ();
+    route->SetDestination (dst);
+    route->SetSource (origin);
+    route->SetGateway (nextHop);
+    route->SetOutputDevice (m_ipv4->GetNetDevice (1));
+    NS_ASSERT (route != 0);
+    NS_LOG_DEBUG ("Exist route to " << route->GetDestination () << " from interface" << route->GetOutputDevice ());
+    NS_LOG_LOGIC (m_mainAddress << " is forwarding packet" << packet->GetUid () << " to " << dst
+                  << " from " << header.GetSource () << " via nexthop neighbor " << toDst.GetNextHop ());
+    ucb (route, packet, header);
+    return true;
+  }
+  NS_LOG_LOGIC ("Drop packet " << packet->GetUid () << " as there is no nextHop to forward if.");
+  return false;
+}
+
 } // namespace maqr
 } // namespace ns3
