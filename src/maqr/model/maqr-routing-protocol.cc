@@ -540,7 +540,7 @@ bool RoutingProtocol::Forwarding (Ptr<const Packet> packet, const Ipv4Header& he
   Ipv4Address dst = header.GetDestination ();
   Ipv4Address origin = header.GetSource ();
   m_nb.Purge ();
-  m_qLearning.Purge ();
+  // m_qLearning.Purge ();
   RoutingTableEntry toDst;
   Ipv4Address nextHop = m_qLearning.GetNextHop (dst);
   if (nextHop != Ipv4Address::GetZero ())
