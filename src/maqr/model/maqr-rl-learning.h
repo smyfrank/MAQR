@@ -3,7 +3,10 @@
 
 #include "maqr-neighbor.h"
 #include "maqr-packet.h"
+#include "maqr-routing-protocol.h"
 #include "ns3/nstime.h"
+#include "ns3/node-list.h"
+#include "ns3/ipv4.h"
 #include <iomanip>
 #include <unordered_set>
 #include <cstdlib>
@@ -83,6 +86,7 @@ public:
    * \param target the target node(state)
    * \param hop the candidate hop(action)
    * \returns the Q Value
+   * \TODO:
    */
   virtual float CalculateQValue(Ipv4Address target, Ipv4Address hop);
   /**
@@ -122,7 +126,10 @@ public:
    * \brief Purge outdate entries, erase (hop, QEntry*), target still exists
    */
   void Purge();
-  
+  // Get node with Ipv4Address
+  Ptr<Node> GetNodeWithAddress (Ipv4Address address);
+  // Get max Q value from neighbor to destination
+  float GetMaxNextStateQValue (Ipv4Address hop, Ipv4Address target);
 
 private:
   float m_learningRate;

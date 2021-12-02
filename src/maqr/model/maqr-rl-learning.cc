@@ -23,8 +23,11 @@ void QLearning::PrintQTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit) co
 
 float QLearning::CalculateQValue(Ipv4Address target, Ipv4Address hop)
 {
+  // First get max Q-value amont the actions from hop to target
+  float maxQ = GetMaxNextStateQValue (hop, target);
+
   return (1-m_learningRate) * m_QTable.at(target).at(hop)->GetqValue() + 
-          m_learningRate * (m_discoutRate * m_QTable.at(target).at(hop)->GetvValue());
+          m_learningRate * (GetReward (Ipv4Address::GetZero (), hop) + m_discoutRate * maxQ);
 }
 
 float QLearning::GetMaxValue(Ipv4Address target)
@@ -191,6 +194,54 @@ void QLearning::Purge()
 
     purgeVec.clear();
   }
+}
+
+Ptr<Node> QLearning::GetNodeWithAddress (Ipv4Address address)
+{
+  NS_LOG_FUNCTION (this << address);
+  int32_t nNodes = NodeList::GetNNodes ();
+  for (int32_t i = 0; i < nNodes; ++i)
+    {
+      Ptr<Node> node = NodeList::GetNode (i);
+      Ptr<Ipv4> ipv4 = node->GetObject<Ipv4> ();
+      int32_t ifIndex = ipv4->GetInterfaceForAddress (address);
+      if (ifIndex != -1)
+        {
+          return node;
+        }
+    }
+  return 0;
+}
+
+float QLearning::GetMaxNextStateQValue (Ipv4Address hop, Ipv4Address target)
+{
+  Ptr<Node> nextNode = GetNodeWithAddress (hop);
+  if (nextNode == 0)
+  {
+    NS_LOG_DEBUG ("Fail to get node with address " << hop);
+    return 0.0;
+  }
+  Ptr<RoutingProtocol> routing = nextNode->GetObject<RoutingProtocol> ();
+  if (routing == 0)
+  {
+    NS_LOG_DEBUG ("Fail to get routing protocol with node " << nextNode);
+    return 0.0;
+  }
+
+  if(routing->m_qLearning.m_QTable.find (target) == routing->m_qLearning.m_QTable.end ())
+  {
+    return 0.0;
+  }
+
+  float result = 0.0;
+  for(auto i = routing->m_qLearning.m_QTable.find (target)->second.cbegin (); i != routing->m_qLearning.m_QTable.find (target)->second.cend (); ++i)
+  {
+    if (i->second->GetqValue () > result)
+    {
+      result = i->second->GetqValue ();
+    }
+  }
+  return result;
 }
 
 } // namespace maqr
