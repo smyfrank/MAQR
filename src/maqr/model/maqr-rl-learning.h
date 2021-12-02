@@ -5,6 +5,10 @@
 #include "maqr-packet.h"
 #include "ns3/nstime.h"
 #include <iomanip>
+#include <unordered_set>
+#include <cstdlib>
+#include <ctime>
+#include <algorithm>
 
 namespace ns3 {
 namespace maqr {
@@ -93,6 +97,13 @@ public:
    * \returns the best next hop for the target node
    */
   Ipv4Address GetNextHop(Ipv4Address target);
+  /**
+   * \brief Get next hop for target node within active neighbors
+   * \param target the target node
+   * \param nbList the active neighbors
+   * \returns the next hop for the target node
+   */
+  Ipv4Address GetNextHop (Ipv4Address target, std::unordered_set<Ipv4Address> nbList);
   /**
    * \brief Reward function
    * \param origin the origin address (state)

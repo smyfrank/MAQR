@@ -51,7 +51,7 @@ float QLearning::GetMaxValue(Ipv4Address target)
 Ipv4Address QLearning::GetNextHop(Ipv4Address target)
 {
   Ipv4Address a = Ipv4Address::GetZero();
-  float res = -100000;
+  float res = -100000.0;
   if(m_QTable.find(target) != m_QTable.end())
   {
     for(auto act = m_QTable.find(target)->second.begin(); act != m_QTable.find(target)->second.end();)
@@ -79,6 +79,46 @@ Ipv4Address QLearning::GetNextHop(Ipv4Address target)
       }
     }
   }
+  return a;
+}
+
+Ipv4Address QLearning::GetNextHop (Ipv4Address target, std::unordered_set<Ipv4Address> nbList)
+{
+  // exploration, randowly choose next hop with probability epsilon
+  srand (time (NULL));
+  float prob = (rand () % (1000)) / 1000.0;
+  if (prob < m_epsilon)
+  {
+    auto i = nbList.cbegin ();
+    std::advance (i, rand () % nbList.size ());
+    return *i;
+  }
+  
+  // exploitation choose the neighbor with highest Q-value
+  Ipv4Address a = Ipv4Address::GetZero ();
+  float res = -100000.0;
+  if (m_QTable.find (target) != m_QTable.end ())
+  {
+    for (auto candidate = m_QTable.find (target)->second.begin (); candidate != m_QTable.find (target)->second.end ();)
+    {
+      if (nbList.find (candidate->first) != nbList.end ())
+      {
+        if (candidate->second->GetqValue () > res)
+        {
+          res = candidate->second->GetqValue ();
+          a = candidate->first;
+        }
+      }
+    }
+  }
+
+  if (a == Ipv4Address::GetZero ())
+  {
+    auto i = nbList.cbegin ();
+    std::advance (i, rand () % nbList.size ());
+    return *i;
+  }
+
   return a;
 }
 
