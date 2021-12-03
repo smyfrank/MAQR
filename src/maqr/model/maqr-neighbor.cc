@@ -122,6 +122,13 @@ void Neighbors::Clear()
   m_nbTable.clear();
 }
 
+std::set<Ipv4Address> Neighbors::GetAllActiveNeighbors ()
+{
+  std::set<Ipv4Address> activeNeighbors;
+  Purge ();
+  activeNeighbors.insert (m_nbTable.cbegin (), m_nbTable.cend ());
+  return activeNeighbors;
+}
 
 
 

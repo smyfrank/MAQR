@@ -6,6 +6,7 @@
 #define MAQR_NEIGHBOR_H
 
 #include <vector>
+#include <set>
 #include "ns3/simulator.h"
 #include "ns3/timer.h"
 #include "ns3/ipv4-address.h"
@@ -126,7 +127,10 @@ public:
    * \brief clears all entries
    */
   void Clear();
-  
+  /**
+   * \brief Get all active neighbors
+   */
+  std::set<Ipv4Address> GetAllActiveNeighbors ();
 
 
    /**

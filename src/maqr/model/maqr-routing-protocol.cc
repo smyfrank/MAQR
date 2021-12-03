@@ -78,13 +78,15 @@ Ptr<Ipv4Route> RoutingProtocol::RouteOutput(Ptr<Packet> p, const Ipv4Header &hea
   Ptr<Ipv4Route> route = Create<Ipv4Route> ();
   Ipv4Address dst = header.GetDestination ();
   Ipv4Address nextHop;
+  m_nb.Purge ();
   if (m_nb.IsNeighbor (dst))
   {
     nextHop = dst;
   }
   else
   {
-    nextHop = m_qLearning.GetNextHop (dst);
+    std::set<Ipv4Address> activeNeighbors = m_nb.GetAllActiveNeighbors ();
+    nextHop = m_qLearning.GetNextHop (dst, activeNeighbors);
   }
   if (nextHop != Ipv4Address::GetZero ())
   {
@@ -542,7 +544,8 @@ bool RoutingProtocol::Forwarding (Ptr<const Packet> packet, const Ipv4Header& he
   m_nb.Purge ();
   // m_qLearning.Purge ();
   RoutingTableEntry toDst;
-  Ipv4Address nextHop = m_qLearning.GetNextHop (dst);
+  std::set<Ipv4Address> activeNeighbors = m_nb.GetAllActiveNeighbors ();
+  Ipv4Address nextHop = m_qLearning.GetNextHop (dst, activeNeighbors);
   if (nextHop != Ipv4Address::GetZero ())
   {
     Ptr<NetDevice> oif = m_ipv4->GetObject<NetDevice> ();
@@ -556,6 +559,18 @@ bool RoutingProtocol::Forwarding (Ptr<const Packet> packet, const Ipv4Header& he
     NS_LOG_LOGIC (m_mainAddress << " is forwarding packet" << packet->GetUid () << " to " << dst
                   << " from " << header.GetSource () << " via nexthop neighbor " << toDst.GetNextHop ());
     ucb (route, packet, header);
+
+    // update Q-table
+    if (m_nb.IsNeighbor (nextHop))
+    {
+      RewardType type = REACH_DESTINATION;
+      m_qLearning.UpdateQValue (dst, nextHop, type);
+    }
+    else
+    {
+      RewardType type = MIDWAY;
+      m_qLearning.UpdateQValue (dst, nextHop, type);
+    }
     return true;
   }
   NS_LOG_LOGIC ("Drop packet " << packet->GetUid () << " as there is no nextHop to forward if.");

@@ -21,13 +21,15 @@ void QLearning::PrintQTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit) co
   *stream->GetStream() << "\n";
 }
 
-float QLearning::CalculateQValue(Ipv4Address target, Ipv4Address hop)
+float QLearning::UpdateQValue(Ipv4Address target, Ipv4Address hop, RewardType type)
 {
   // First get max Q-value amont the actions from hop to target
   float maxQ = GetMaxNextStateQValue (hop, target);
 
-  return (1-m_learningRate) * m_QTable.at(target).at(hop)->GetqValue() + 
-          m_learningRate * (GetReward (Ipv4Address::GetZero (), hop) + m_discoutRate * maxQ);
+  float newQValue = (1-m_learningRate) * m_QTable.at(target).at(hop)->GetqValue() + 
+          m_learningRate * (GetReward(hop, type) + m_discoutRate * maxQ);
+  m_QTable.find (target)->second.find (hop)->second->SetqValue (newQValue);
+  return newQValue;
 }
 
 float QLearning::GetMaxValue(Ipv4Address target)
@@ -42,9 +44,9 @@ float QLearning::GetMaxValue(Ipv4Address target)
       {
         if(act == m_QTable.find(target)->second.begin())
         {
-          res = CalculateQValue(target, act->first);
+          res = m_QTable.find (target)->second.cbegin ()->second->GetqValue ();
         }
-        res = std::max(res, CalculateQValue(target, act->first));
+        res = std::max(res, m_QTable.find (target)->second.cbegin ()->second->GetqValue ());
       }
     }
   }
@@ -64,12 +66,12 @@ Ipv4Address QLearning::GetNextHop(Ipv4Address target)
       {
         if(act == m_QTable.find(target)->second.begin())
         {
-          res = CalculateQValue(target, act->first);
+          res = m_QTable.find (target)->second.cbegin ()->second->GetqValue ();
           a = act->first;
         }
-        else if(CalculateQValue(target, act->first) > res)
+        else if(m_QTable.find (target)->second.cbegin ()->second->GetqValue () > res)
         {
-          res = CalculateQValue(target, act->first);
+          res = m_QTable.find (target)->second.cbegin ()->second->GetqValue ();
           a = act->first;
         }
         act++;
@@ -85,7 +87,7 @@ Ipv4Address QLearning::GetNextHop(Ipv4Address target)
   return a;
 }
 
-Ipv4Address QLearning::GetNextHop (Ipv4Address target, std::unordered_set<Ipv4Address> nbList)
+Ipv4Address QLearning::GetNextHop (Ipv4Address target, const std::set<Ipv4Address>& nbList)
 {
   // exploration, randowly choose a neighbor as next hop with probability epsilon
   srand (time (NULL));
@@ -142,9 +144,20 @@ Ipv4Address QLearning::GetNextHop (Ipv4Address target, std::unordered_set<Ipv4Ad
   return a;
 }
 
-float QLearning::GetReward(Ipv4Address origin, Ipv4Address hop)
+float QLearning::GetReward(Ipv4Address hop, RewardType type)
 {
-  return 0.0;
+  // TODO
+  switch (type)
+  {
+    case REACH_DESTINATION:
+      return 10;
+    case VOID_AREA:
+      return -10;
+    case LOOP:
+      return -10;
+    case MIDWAY:
+      return 1;
+  }
 }
 
 void QLearning::InsertQEntry(Ipv4Address target, Ipv4Address hop, QValueEntry* qEntry)

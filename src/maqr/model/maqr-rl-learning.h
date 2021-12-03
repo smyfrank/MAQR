@@ -8,13 +8,21 @@
 #include "ns3/node-list.h"
 #include "ns3/ipv4.h"
 #include <iomanip>
-#include <unordered_set>
+#include <set>
 #include <cstdlib>
 #include <ctime>
 #include <algorithm>
 
 namespace ns3 {
 namespace maqr {
+
+enum RewardType
+{
+  REACH_DESTINATION,
+  VOID_AREA,
+  LOOP,
+  MIDWAY
+};
 
 class QValueEntry
 {
@@ -88,7 +96,7 @@ public:
    * \returns the Q Value
    * \TODO:
    */
-  virtual float CalculateQValue(Ipv4Address target, Ipv4Address hop);
+  virtual float UpdateQValue(Ipv4Address target, Ipv4Address hop, RewardType type);
   /**
    * \brief Get max Q value for target node(only search in the active neighbors)
    * \param target the target node
@@ -107,7 +115,7 @@ public:
    * \param nbList the active neighbors
    * \returns the next hop for the target node
    */
-  Ipv4Address GetNextHop (Ipv4Address target, std::unordered_set<Ipv4Address> nbList);
+  Ipv4Address GetNextHop (Ipv4Address target, const std::set<Ipv4Address>& nbList);
   /**
    * \brief Reward function
    * \param origin the origin address (state)
@@ -115,7 +123,7 @@ public:
    * \returns the reward
    * \TODO: detail design
    */
-  float GetReward(Ipv4Address origin, Ipv4Address hop);
+  float GetReward(Ipv4Address hop, RewardType type);
   /**
    * \brief Insert new (origin, next hop) entry if not exists
    * \param origin the origin address (state)
