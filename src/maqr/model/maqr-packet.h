@@ -91,7 +91,6 @@ public:
    * \param curPos current position
    */
   HelloHeader (uint8_t reserved8 = 0, uint16_t reserved16 = 0, Ipv4Address origin = Ipv4Address(), float qValue = 1.0, Vector2D curPos = Vector2D(0, 0));
-  virtual ~HelloHeader();
   /**
    * \brief Get the type ID.
    * \return the object TypeId

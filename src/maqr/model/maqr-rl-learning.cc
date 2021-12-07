@@ -24,6 +24,7 @@ void QLearning::PrintQTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit) co
   *stream->GetStream() << "\n";
 }
 
+/*
 float QLearning::UpdateQValue(Ipv4Address target, Ipv4Address hop, RewardType type)
 {
   // First get max Q-value amont the actions from hop to target
@@ -34,6 +35,7 @@ float QLearning::UpdateQValue(Ipv4Address target, Ipv4Address hop, RewardType ty
   m_QTable.find (target)->second.find (hop)->second->SetqValue (newQValue);
   return newQValue;
 }
+*/
 
 float QLearning::GetMaxValue(Ipv4Address target)
 {
@@ -161,6 +163,7 @@ float QLearning::GetReward(Ipv4Address hop, RewardType type)
     case MIDWAY:
       return 1;
   }
+  return 0;
 }
 
 void QLearning::InsertQEntry(Ipv4Address target, Ipv4Address hop, QValueEntry* qEntry)
@@ -229,36 +232,7 @@ Ptr<Node> QLearning::GetNodeWithAddress (Ipv4Address address)
   return 0;
 }
 
-float QLearning::GetMaxNextStateQValue (Ipv4Address hop, Ipv4Address target)
-{
-  Ptr<Node> nextNode = GetNodeWithAddress (hop);
-  if (nextNode == 0)
-  {
-    NS_LOG_DEBUG ("Fail to get node with address " << hop);
-    return 0.0;
-  }
-  Ptr<RoutingProtocol> routing = nextNode->GetObject<RoutingProtocol> ();
-  if (routing == 0)
-  {
-    NS_LOG_DEBUG ("Fail to get routing protocol with node " << nextNode);
-    return 0.0;
-  }
 
-  if(routing->m_qLearning.m_QTable.find (target) == routing->m_qLearning.m_QTable.end ())
-  {
-    return 0.0;
-  }
-
-  float result = 0.0;
-  for(auto i = routing->m_qLearning.m_QTable.find (target)->second.cbegin (); i != routing->m_qLearning.m_QTable.find (target)->second.cend (); ++i)
-  {
-    if (i->second->GetqValue () > result)
-    {
-      result = i->second->GetqValue ();
-    }
-  }
-  return result;
-}
 
 } // namespace maqr
 } // namespace ns3

@@ -95,7 +95,7 @@ public:
    * \returns the Q Value
    * \TODO:
    */
-  virtual float UpdateQValue(Ipv4Address target, Ipv4Address hop, RewardType type);
+  // virtual float UpdateQValue(Ipv4Address target, Ipv4Address hop, RewardType type);
   /**
    * \brief Get max Q value for target node(only search in the active neighbors)
    * \param target the target node
@@ -136,9 +136,8 @@ public:
   // Get node with Ipv4Address
   Ptr<Node> GetNodeWithAddress (Ipv4Address address);
   // Get max Q value from neighbor to destination
-  float GetMaxNextStateQValue (Ipv4Address hop, Ipv4Address target);
+  // float GetMaxNextStateQValue (Ipv4Address hop, Ipv4Address target);
 
-private:
   float m_learningRate;
   float m_discoutRate;
   float m_epsilon;

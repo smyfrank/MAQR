@@ -26,15 +26,16 @@ TypeId RoutingProtocol::GetTypeId(void)
                   TimeValue(Seconds(1)),
                   MakeTimeAccessor(&RoutingProtocol::m_helloInterval), MakeTimeChecker())
     ;
+  return tid;
 }
 
 RoutingProtocol::RoutingProtocol()
-  : m_helloInterval(Seconds(1)),
+  : m_queue(m_maxQueueLen, m_maxQueueTime),
     m_maxQueueLen(64),
     m_maxQueueTime(Seconds(30)),
-    m_queue(m_maxQueueLen, m_maxQueueTime),
-    m_helloIntervalTimer(Timer::CANCEL_ON_DESTROY),
-    m_qLearning(0.3, 0.9, 0.3, Seconds(1.1))
+    m_qLearning(0.3, 0.9, 0.3, Seconds(1.1)),
+    m_helloInterval(Seconds(1)),
+    m_helloIntervalTimer(Timer::CANCEL_ON_DESTROY)
 {
   m_nb = Neighbors(Seconds(2));  // neighbor entry lifetime
   m_uniformRandomVariable = CreateObject<UniformRandomVariable> ();
@@ -453,7 +454,7 @@ void RoutingProtocol::ReceiveHello(Ptr<Socket> socket)
   curPos = hdr.GetCurPosition();
   InetSocketAddress inetSourceAddr = InetSocketAddress::ConvertFrom(sourceAddress);
   Ipv4Address sender = inetSourceAddr.GetIpv4();
-  Ipv4Address receiver = m_socketAddresses[socket].GetLocal();
+  // Ipv4Address receiver = m_socketAddresses[socket].GetLocal();
 
   UpdateNeighbor(sender, maxQ, curPos);
 }
@@ -564,12 +565,12 @@ bool RoutingProtocol::Forwarding (Ptr<const Packet> packet, const Ipv4Header& he
     if (m_nb.IsNeighbor (nextHop))
     {
       RewardType type = REACH_DESTINATION;
-      m_qLearning.UpdateQValue (dst, nextHop, type);
+      UpdateQValue (dst, nextHop, type);
     }
     else
     {
       RewardType type = MIDWAY;
-      m_qLearning.UpdateQValue (dst, nextHop, type);
+      UpdateQValue (dst, nextHop, type);
     }
     return true;
   }
@@ -577,7 +578,64 @@ bool RoutingProtocol::Forwarding (Ptr<const Packet> packet, const Ipv4Header& he
   return false;
 }
 
+Ptr<Node> RoutingProtocol::GetNodeWithAddress (Ipv4Address address)
+{
+  NS_LOG_FUNCTION (this << address);
+  int32_t nNodes = NodeList::GetNNodes ();
+  for (int32_t i = 0; i < nNodes; ++i)
+    {
+      Ptr<Node> node = NodeList::GetNode (i);
+      Ptr<Ipv4> ipv4 = node->GetObject<Ipv4> ();
+      int32_t ifIndex = ipv4->GetInterfaceForAddress (address);
+      if (ifIndex != -1)
+        {
+          return node;
+        }
+    }
+  return 0;
+}
 
+float RoutingProtocol::GetMaxNextStateQValue (Ipv4Address hop, Ipv4Address target)
+{
+  Ptr<Node> nextNode = GetNodeWithAddress (hop);
+  if (nextNode == 0)
+  {
+    NS_LOG_DEBUG ("Fail to get node with address " << hop);
+    return 0.0;
+  }
+  Ptr<RoutingProtocol> routing = nextNode->GetObject<RoutingProtocol> ();
+  if (routing == 0)
+  {
+    NS_LOG_DEBUG ("Fail to get routing protocol with node " << nextNode);
+    return 0.0;
+  }
+
+  if(routing->m_qLearning.m_QTable.find (target) == routing->m_qLearning.m_QTable.end ())
+  {
+    return 0.0;
+  }
+
+  float result = 0.0;
+  for(auto i = routing->m_qLearning.m_QTable.find (target)->second.cbegin (); i != routing->m_qLearning.m_QTable.find (target)->second.cend (); ++i)
+  {
+    if (i->second->GetqValue () > result)
+    {
+      result = i->second->GetqValue ();
+    }
+  }
+  return result;
+}
+
+float RoutingProtocol::UpdateQValue(Ipv4Address target, Ipv4Address hop, RewardType type)
+{
+  // First get max Q-value amont the actions from hop to target
+  float maxQ = GetMaxNextStateQValue (hop, target);
+
+  float newQValue = (1 - m_qLearning.m_learningRate) * m_qLearning.m_QTable.at(target).at(hop)->GetqValue() + 
+          m_qLearning.m_learningRate * (m_qLearning.GetReward(hop, type) + m_qLearning.m_discoutRate * maxQ);
+  m_qLearning.m_QTable.find (target)->second.find (hop)->second->SetqValue (newQValue);
+  return newQValue;
+}
 
 } // namespace maqr
 } // namespace ns3

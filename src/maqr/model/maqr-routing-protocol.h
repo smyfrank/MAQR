@@ -180,6 +180,19 @@ public:
    */
   bool Forwarding (Ptr<const Packet> p, const Ipv4Header& header, UnicastForwardCallback ucb, ErrorCallback ecb);
 
+  // Get the max Q-value from hop to target, the value stores in other nodes
+  float GetMaxNextStateQValue (Ipv4Address hop, Ipv4Address target);
+
+  // Get node by searching Ipv4Address in NetDevice in each node
+  Ptr<Node> GetNodeWithAddress (Ipv4Address address);
+
+  float UpdateQValue(Ipv4Address target, Ipv4Address hop, RewardType type);
+
+  virtual void PrintRoutingTable (ns3::Ptr<ns3::OutputStreamWrapper>, Time::Unit unit = Time::S) const
+  {
+    return;
+  }
+
   // IP protocol
   Ptr<Ipv4> m_ipv4;
   // Raw unicast socket per each IP interface, map socket ->iface address (IP + mask)
