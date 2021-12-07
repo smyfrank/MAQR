@@ -126,7 +126,10 @@ std::set<Ipv4Address> Neighbors::GetAllActiveNeighbors ()
 {
   std::set<Ipv4Address> activeNeighbors;
   Purge ();
-  activeNeighbors.insert (m_nbTable.cbegin (), m_nbTable.cend ());
+  for (auto i = m_nbTable.cbegin (); i != m_nbTable.cend (); i++)
+  {
+    activeNeighbors.insert (i->first);
+  }
   return activeNeighbors;
 }
 

@@ -3,7 +3,6 @@
 
 #include "maqr-neighbor.h"
 #include "maqr-packet.h"
-#include "maqr-routing-protocol.h"
 #include "ns3/nstime.h"
 #include "ns3/node-list.h"
 #include "ns3/ipv4.h"

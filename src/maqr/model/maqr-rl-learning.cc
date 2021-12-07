@@ -1,6 +1,9 @@
 #include "maqr-rl-learning.h"
 
 namespace ns3 {
+
+NS_LOG_COMPONENT_DEFINE ("MaqrRlLearning");
+
 namespace maqr {
 
 void QLearning::PrintQTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit) const

@@ -46,11 +46,14 @@ U32toF (uint32_t v)
 }
 
 namespace ns3 {
+
+NS_LOG_COMPONENT_DEFINE ("MaqrPacket");
+
 namespace maqr {
 
 NS_OBJECT_ENSURE_REGISTERED(TypeHeader);
 
-TypeHeader::TypeHeader(MessageType t)
+TypeHeader::TypeHeader(MessageType t = MAQRTYPE_HELLO)
   : m_type(t),
     m_valid(true)
 {

@@ -7,9 +7,14 @@
 #     conf.check_nonfatal(header_name='stdint.h', define_name='HAVE_STDINT_H')
 
 def build(bld):
-    module = bld.create_ns3_module('maqr', ['core'])
+    module = bld.create_ns3_module('maqr', ['internet', 'wifi'])
     module.source = [
-        'model/maqr.cc',
+        'model/maqr-neighbor.cc',
+        'model/maqr-packet.cc',
+        'model/maqr-rl-learning.cc',
+        'model/maqr-routing-protocol.cc',
+        'model/maqr-rqueue.cc',
+        'model/maqr-rtable.cc',
         'helper/maqr-helper.cc',
         ]
 
@@ -26,7 +31,12 @@ def build(bld):
     headers = bld(features='ns3header')
     headers.module = 'maqr'
     headers.source = [
-        'model/maqr.h',
+        'model/maqr-neighbor.h',
+        'model/maqr-packet.h',
+        'model/maqr-rl-learning.h',
+        'model/maqr-routing-protocol.h',
+        'model/maqr-rqueue.h',
+        'model/maqr-rtable.h',
         'helper/maqr-helper.h',
         ]
 
