@@ -193,6 +193,8 @@ public:
     return;
   }
 
+  int64_t AssignStreams (int64_t stream);
+
   // IP protocol
   Ptr<Ipv4> m_ipv4;
   // Raw unicast socket per each IP interface, map socket ->iface address (IP + mask)
