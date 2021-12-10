@@ -5,21 +5,30 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) Launch from scratch",
+            "name": "(gdb) Pipe Launch",
             "type": "cppdbg",
             "request": "launch",
+            //"program": "${workspaceFolder}/build/utils/ns3-dev-test-runner-debug",
             "program": "${workspaceFolder}/build/scratch/${fileBasenameNoExtension}",
-            "args": [],
+            "args": ["--nWifi=12"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "preLaunchTask": "Build",
-            "environment": [
-                {
-                    "name": "LD_LIBRARY_PATH",
-                    "value": "./build/lib/"
-                }
-            ],
-            "externalConsole": true,
+            "environment": [],
+            "externalConsole": false,
+            "pipeTransport": {
+                "debuggerPath": "",  // leave blank
+                "pipeProgram": "${workspaceFolder}/waf",
+                // pipeArgs is essentially the entire waf command line arguments                
+                "pipeArgs": [                    
+                    "--command-template", "\"",                 // opening double quote for command template 
+                    "${debuggerCommand}",                       // gdb path and --interpreter arg already in debuggerCommand 
+                    "--args", "%s",                             // Need to add --args %s to the gdb call
+                    "\"",                                       // closing quote for command template
+                    "--run", "${fileBasenameNoExtension}",      // Run call with the filename
+                    ],
+                    "quoteArgs":false,
+                    "pipeCwd": ""
+            },
             "MIMode": "gdb",
             "setupCommands": [
                 {
@@ -28,67 +37,44 @@
                     "ignoreFailures": true
                 }
             ]
-         },
-         {
-            "name": "(lldb) Launch from scratch",
+        },
+        {
+            // Launch config emulates waf environment, calls gdb directly
+            "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/scratch/${fileBasenameNoExtension}",
-            "args": [],
+            // my build folder is ${workspaceFolder}/build, substitute yours
+            "program": "${workspaceFolder}/build/utils/ns3-dev-test-runner-debug",
+            "args": [
+                "--suite=<test-suite>"  // specify test suite
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "preLaunchTask": "Build",
+            // replace the values below with those found from running
+            // $ waf shell
+            // $ env
             "environment": [
-                {
-                    "name": "LD_LIBRARY_PATH",
-                    "value": "./build/lib/"
-                }
+                //{"Name": "NS_LOG", "Value": "Debug"}],
+                {"Name": "PYTHONPATH", "Value": "<from waf shell>"},
+                {"Name": "LD_LIBRARY_PATH", "Value": "<from waf shell>"},
+                {"Name": "NS3_MODULE_PATH", "Value": "<from waf shell>"},
+                {"Name": "NS3_EXECUTABLE_PATH", "Value": "<from waf shell>"},
+                {"Name": "PATH", "Value": "<from waf shell>"}
             ],
             "externalConsole": false,
-            "MIMode": "lldb"
-         },
-         {
-            "name": "(gdb) Launch testrunner",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/utils/ns3-dev-test-runner-debug",
-            "args": ["--suite=${selectedText}"],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "preLaunchTask": "Build",
-            "environment": [
-                {
-                    "name": "LD_LIBRARY_PATH",
-                    "value": "./build/lib/"
-                }
-            ],
-            "externalConsole": true,
             "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
                     "text": "-enable-pretty-printing",
                     "ignoreFailures": true
                 }
-            ]
-         },
-         {
-            "name": "(lldb) Launch testrunner",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/utils/ns3-dev-test-runner-debug",
-            "args": ["--suite=${selectedText}"],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "preLaunchTask": "Build",
-            "environment": [
-                {
-                    "name": "LD_LIBRARY_PATH",
-                    "value": "./build/lib/"
-                }
             ],
-            "externalConsole": false,
-            "MIMode": "lldb"
-         }
+            "logging": {
+                "engineLogging" :true,
+                "trace": true
+            }
+        }
     ]
 }
