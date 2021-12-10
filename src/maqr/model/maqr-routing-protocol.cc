@@ -3,6 +3,7 @@
 #include "ns3/uinteger.h"
 #include "ns3/wifi-net-device.h"
 #include "ns3/adhoc-wifi-mac.h"
+#include "ns3/socket.h"
 
 namespace ns3 {
 
@@ -87,6 +88,16 @@ Ptr<Ipv4Route> RoutingProtocol::RouteOutput(Ptr<Packet> p, const Ipv4Header &hea
   else
   {
     std::set<Ipv4Address> activeNeighbors = m_nb.GetAllActiveNeighbors ();
+
+    /**
+     * \todo loop back if there's no active neighbors
+     * \brief Drop packet if no active neighbors
+     */
+    if (activeNeighbors.empty ())
+    {
+      return LoopbackRoute(header, oif);
+    }
+
     nextHop = m_qLearning.GetNextHop (dst, activeNeighbors);
   }
   if (nextHop != Ipv4Address::GetZero ())
@@ -137,10 +148,12 @@ bool RoutingProtocol::RouteInput(Ptr<const Packet> p, const Ipv4Header &header,
   Ipv4Address origin = header.GetSource ();
 
   // Duplicate of own packet
+  /*
   if (IsMyOwnAddress (origin))
   {
     return true;
   }
+  */
 
   if (dst.IsMulticast ())
   {
@@ -252,7 +265,8 @@ void RoutingProtocol::NotifyInterfaceUp(uint32_t interface)
   {
     return;
   }
-  mac->TraceConnectWithoutContext("TxErrHeader", m_nb.GetTxErrorCallback());
+  // todo bugfixes
+  //mac->TraceConnectWithoutContext("TxErrHeader", m_nb.GetTxErrorCallback());
 }
 
 void RoutingProtocol::NotifyInterfaceDown(uint32_t interface)
@@ -365,6 +379,11 @@ void RoutingProtocol::SetIpv4(Ptr<Ipv4> ipv4)
   NS_ASSERT(ipv4 != 0);
   NS_ASSERT(m_ipv4 == 0);
   m_ipv4 = ipv4;
+
+  // Create lo route. It is asserted that the only one interface up for now is loopback
+  NS_ASSERT (m_ipv4->GetNInterfaces () == 1 && m_ipv4->GetAddress (0, 0).GetLocal () == Ipv4Address ("127.0.0.1"));
+  m_lo = m_ipv4->GetNetDevice (0);
+  NS_ASSERT (m_lo != 0);
 
   Simulator::ScheduleNow(&RoutingProtocol::Start, this);
 }
@@ -546,6 +565,17 @@ bool RoutingProtocol::Forwarding (Ptr<const Packet> packet, const Ipv4Header& he
   // m_qLearning.Purge ();
   RoutingTableEntry toDst;
   std::set<Ipv4Address> activeNeighbors = m_nb.GetAllActiveNeighbors ();
+
+  /**
+   * \todo loop back if there's no active neighbors
+   * \brief Drop packet if no active neighbors
+   */
+  if (activeNeighbors.empty ())
+  {
+    Drop (packet, header, Socket::ERROR_NOROUTETOHOST);
+    return false;
+  }
+
   Ipv4Address nextHop = m_qLearning.GetNextHop (dst, activeNeighbors);
   if (nextHop != Ipv4Address::GetZero ())
   {

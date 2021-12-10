@@ -10,7 +10,7 @@
             "request": "launch",
             //"program": "${workspaceFolder}/build/utils/ns3-dev-test-runner-debug",
             "program": "${workspaceFolder}/build/scratch/${fileBasenameNoExtension}",
-            "args": ["--nWifi=12"],
+            "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
