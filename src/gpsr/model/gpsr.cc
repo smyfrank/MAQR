@@ -484,7 +484,7 @@ RoutingProtocol::NotifyInterfaceUp (uint32_t interface)
       return;
     }
 
-  mac->TraceConnectWithoutContext ("TxErrHeader", m_neighbors.GetTxErrorCallback ());
+  // mac->TraceConnectWithoutContext ("TxErrHeader", m_neighbors.GetTxErrorCallback ());
 
 }
 
