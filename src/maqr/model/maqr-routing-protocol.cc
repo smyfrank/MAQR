@@ -154,6 +154,7 @@ bool RoutingProtocol::RouteInput(Ptr<const Packet> p, const Ipv4Header &header,
     return true;
   }
   */
+  
 
   if (dst.IsMulticast ())
   {
@@ -161,7 +162,7 @@ bool RoutingProtocol::RouteInput(Ptr<const Packet> p, const Ipv4Header &header,
   }
 
   // Broadcast local delivery/forward
-  for (auto j = m_socketAddresses.cbegin (); j != m_socketAddresses.end (); ++j)
+  for (auto j = m_socketAddresses.cbegin (); j != m_socketAddresses.cend (); ++j)
   {
     Ipv4InterfaceAddress iface = j->second;
     if (m_ipv4->GetInterfaceForAddress (iface.GetLocal ()) == iif)
@@ -246,16 +247,40 @@ void RoutingProtocol::NotifyInterfaceUp(uint32_t interface)
   /**
    * \TODO: SetRecvCallback
    */
-  socket->SetRecvCallback(MakeCallback(&RoutingProtocol::ReceiveHello, this));
-  socket->Bind(InetSocketAddress(Ipv4Address::GetAny(), MAQR_PORT));
-  socket->BindToNetDevice(l3->GetNetDevice(interface));
+  socket->SetRecvCallback(MakeCallback(&RoutingProtocol::RecvMaqr, this));
+
+  socket->BindToNetDevice(l3->GetNetDevice(interface));  
+  socket->Bind(InetSocketAddress(iface.GetLocal (), MAQR_PORT));
   socket->SetAllowBroadcast(true);
-  socket->SetAttribute("IpTtl", UintegerValue(1));
+  socket->SetIpRecvTtl (true);
   m_socketAddresses.insert(std::make_pair(socket, iface));
 
+  // create also a subnet broadcast socket
+  socket = Socket::CreateSocket (GetObject<Node> (),
+                                 UdpSocketFactory::GetTypeId ());
+  NS_ASSERT (socket != 0);
+  socket->SetRecvCallback (MakeCallback (&RoutingProtocol::RecvMaqr, this));
+  socket->BindToNetDevice (l3->GetNetDevice (interface));
+  socket->Bind (InetSocketAddress (iface.GetBroadcast (), MAQR_PORT));
+  socket->SetAllowBroadcast (true);
+  socket->SetIpRecvTtl (true);
+  m_socketSubnetBroadcastAddresses.insert (std::make_pair (socket, iface));
+
+  // Add local broadcast record to the routing table
+  Ptr<NetDevice> dev = m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (iface.GetLocal ()));
+  RoutingTableEntry rt (/*device=*/ dev, /*dst=*/ iface.GetBroadcast (), /*iface=*/ iface,
+                        /*next hop=*/ iface.GetBroadcast (), /*lifetime=*/ Simulator::GetMaximumSimulationTime ());
+  m_routingTable.AddRoute (rt);
+
+  /*
+  if (l3->GetInterface (i)->GetArpCache ())
+  {
+    m_nb.AddArpCache (l3->GetInterface (i)->GetArpCache ());
+  }
+  */
+
   // Allow neighbor manager use this interface for layer 2 feedback if possible
-  Ptr<NetDevice> dev = m_ipv4->GetNetDevice(m_ipv4->GetInterfaceForAddress(iface.GetLocal()));
-  Ptr<WifiNetDevice> wifi = dev->GetObject<WifiNetDevice>();
+  Ptr<WifiNetDevice> wifi = dev->GetObject<WifiNetDevice> ();
   if(wifi == 0)
   {
     return;
@@ -265,8 +290,13 @@ void RoutingProtocol::NotifyInterfaceUp(uint32_t interface)
   {
     return;
   }
-  // todo bugfixes
-  //mac->TraceConnectWithoutContext("TxErrHeader", m_nb.GetTxErrorCallback());
+  
+  mac->TraceConnectWithoutContext ("DroppedMpdu", MakeCallback (&RoutingProtocol::NotifyTxError, this));
+}
+
+void RoutingProtocol::NotifyTxError (WifiMacDropReason reason, Ptr<const WifiMacQueueItem> mpdu)
+{
+  m_nb.GetTxErrorCallback ()(mpdu->GetHeader ());
 }
 
 void RoutingProtocol::NotifyInterfaceDown(uint32_t interface)
@@ -282,7 +312,9 @@ void RoutingProtocol::NotifyInterfaceDown(uint32_t interface)
     Ptr<WifiMac> mac = wifi->GetMac()->GetObject<AdhocWifiMac>();
     if(mac != 0)
     {
-      mac->TraceDisconnectWithoutContext("TxErrHeader", m_nb.GetTxErrorCallback());
+      mac->TraceDisconnectWithoutContext ("DroppedMpdu",
+                                          MakeCallback (&RoutingProtocol::NotifyTxError, this));
+      // m_nb.DelArpCache (l3->GetInterface (interface)->GetArpCache ());
     }
   }
 
@@ -291,12 +323,38 @@ void RoutingProtocol::NotifyInterfaceDown(uint32_t interface)
   NS_ASSERT(socket);
   socket->Close();
   m_socketAddresses.erase(socket);
+
+  socket = FindSubnetBroadcastSocketWithInterfaceAddress (m_ipv4->GetAddress (interface, 0));
+  NS_ASSERT (socket);
+  socket->Close ();
+  m_socketSubnetBroadcastAddresses.erase (socket);
+
   if(m_socketAddresses.empty())
   {
     NS_LOG_LOGIC("No maqr interfaces");
     m_nb.Clear();
+    m_routingTable.Clear ();
     return;
   }
+  m_routingTable.DeleteAllRoutesFromInterface (m_ipv4->GetAddress (interface, 0));
+}
+
+Ptr<Socket>
+RoutingProtocol::FindSubnetBroadcastSocketWithInterfaceAddress (Ipv4InterfaceAddress addr ) const
+{
+  NS_LOG_FUNCTION (this << addr);
+  for (std::map<Ptr<Socket>, Ipv4InterfaceAddress>::const_iterator j =
+         m_socketSubnetBroadcastAddresses.begin (); j != m_socketSubnetBroadcastAddresses.end (); ++j)
+    {
+      Ptr<Socket> socket = j->first;
+      Ipv4InterfaceAddress iface = j->second;
+      if (iface == addr)
+        {
+          return socket;
+        }
+    }
+  Ptr<Socket> socket;
+  return socket;
 }
 
 void RoutingProtocol::NotifyAddAddress(uint32_t interface, Ipv4InterfaceAddress address)
@@ -320,14 +378,28 @@ void RoutingProtocol::NotifyAddAddress(uint32_t interface, Ipv4InterfaceAddress 
       // Create a socket to listen only on the interface
       Ptr<Socket> socket = Socket::CreateSocket(GetObject<Node>(), UdpSocketFactory::GetTypeId());
       NS_ASSERT(socket != 0);
-      socket->SetRecvCallback(MakeCallback(&RoutingProtocol::ReceiveHello, this));
+      socket->SetRecvCallback(MakeCallback(&RoutingProtocol::RecvMaqr, this));
       socket->BindToNetDevice(l3->GetNetDevice(interface));
-      // Bind to any IP address so that broadcasts can be received
-      socket->Bind(InetSocketAddress(Ipv4Address::GetAny(), MAQR_PORT));
+      socket->Bind(InetSocketAddress(iface.GetLocal (), MAQR_PORT));
       socket->SetAllowBroadcast(true);
       m_socketAddresses.insert(std::make_pair(socket, iface));
 
-      Ptr<NetDevice> dev = m_ipv4->GetNetDevice(m_ipv4->GetInterfaceForAddress(iface.GetLocal()));
+      // create also a subnet directed broadcast socket
+      socket = Socket::CreateSocket (GetObject<Node> (),
+                                     UdpSocketFactory::GetTypeId ());
+      NS_ASSERT (socket != 0);
+      socket->SetRecvCallback (MakeCallback (&RoutingProtocol::RecvMaqr, this));
+      socket->BindToNetDevice (l3->GetNetDevice (interface));
+      socket->Bind (InetSocketAddress (iface.GetBroadcast (), MAQR_PORT));
+      socket->SetAllowBroadcast (true);
+      socket->SetIpRecvTtl (true);
+      m_socketSubnetBroadcastAddresses.insert (std::make_pair (socket, iface));
+
+      // Add local broadcast record to the routing table
+      Ptr<NetDevice> dev = m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (iface.GetLocal ()));
+      RoutingTableEntry rt (/*device=*/ dev, /*dst=*/ iface.GetBroadcast (), /*iface=*/ iface,
+                        /*next hop=*/ iface.GetBroadcast (), /*lifetime=*/ Simulator::GetMaximumSimulationTime ());
+      m_routingTable.AddRoute (rt);
     }
   }
   else
@@ -342,7 +414,17 @@ void RoutingProtocol::NotifyRemoveAddress(uint32_t i, Ipv4InterfaceAddress addre
   Ptr<Socket> socket = FindSocketWithInterfaceAddress(address);
   if(socket)
   {
+    m_routingTable.DeleteAllRoutesFromInterface (address);
+    socket->Close ();
     m_socketAddresses.erase(socket);
+
+    Ptr<Socket> unicastSocket = FindSubnetBroadcastSocketWithInterfaceAddress (address);
+    if (unicastSocket)
+    {
+      unicastSocket->Close ();
+      m_socketAddresses.erase (unicastSocket);
+    }
+
     Ptr<Ipv4L3Protocol> l3 = m_ipv4->GetObject<Ipv4L3Protocol>();
     if(l3->GetNAddresses(i))
     {
@@ -350,18 +432,36 @@ void RoutingProtocol::NotifyRemoveAddress(uint32_t i, Ipv4InterfaceAddress addre
       // Create a socket to listen only on this interface
       Ptr<Socket> socket = Socket::CreateSocket(GetObject<Node>(), UdpSocketFactory::GetTypeId());
       NS_ASSERT(socket != 0);
-      socket->SetRecvCallback(MakeCallback(&RoutingProtocol::ReceiveHello, this));
-      // Bind to any IO address so that broadcasts can be received
-      socket->Bind(InetSocketAddress(Ipv4Address::GetAny(), MAQR_PORT));
+      socket->SetRecvCallback(MakeCallback(&RoutingProtocol::RecvMaqr, this));
+      // Bind to any IP address so that broadcasts can be received (AODV says so)
+      socket->BindToNetDevice (l3->GetNetDevice (i));
+      socket->Bind(InetSocketAddress(iface.GetLocal (), MAQR_PORT));
       socket->SetAllowBroadcast(true);
+      socket->SetIpRecvTtl (true);
       m_socketAddresses.insert(std::make_pair(socket, iface));
 
-      Ptr<NetDevice> dev = m_ipv4->GetNetDevice(m_ipv4->GetInterfaceForAddress(iface.GetLocal()));
+      // create also a unicast socket (AODV says so)
+      socket = Socket::CreateSocket (GetObject<Node> (),
+                                     UdpSocketFactory::GetTypeId ());
+      NS_ASSERT (socket != 0);
+      socket->SetRecvCallback (MakeCallback (&RoutingProtocol::RecvMaqr, this));
+      socket->BindToNetDevice (l3->GetNetDevice (i));
+      socket->Bind (InetSocketAddress (iface.GetBroadcast (), MAQR_PORT));
+      socket->SetAllowBroadcast (true);
+      socket->SetIpRecvTtl (true);
+      m_socketSubnetBroadcastAddresses.insert (std::make_pair (socket, iface));
+
+      // Add local broadcast record to the routing table
+      Ptr<NetDevice> dev = m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (iface.GetLocal ()));
+      RoutingTableEntry rt (/*device=*/ dev, /*dst=*/ iface.GetBroadcast (), /*iface=*/ iface,
+                        /*next hop=*/ iface.GetBroadcast (), /*lifetime=*/ Simulator::GetMaximumSimulationTime ());
+      m_routingTable.AddRoute (rt);
     }
     if(m_socketAddresses.empty())
     {
       NS_LOG_LOGIC("No maqr interface");
       m_nb.Clear();
+      m_routingTable.Clear ();
       return;
     }
   }
@@ -442,6 +542,7 @@ Ptr<Socket> RoutingProtocol::FindSocketWithInterfaceAddress(Ipv4InterfaceAddress
 
 void RoutingProtocol::Start()
 {
+  NS_LOG_FUNCTION (this);
   m_scb = MakeCallback(&RoutingProtocol::Send, this);
   m_ecb = MakeCallback(&RoutingProtocol::Drop, this);
   m_helloIntervalTimer.SetFunction(&RoutingProtocol::HelloTimerExpire, this);
@@ -452,28 +553,55 @@ void RoutingProtocol::Start()
   m_selfIpv4Address = m_ipv4->GetAddress(1, 0).GetLocal();
 }
 
-void RoutingProtocol::ReceiveHello(Ptr<Socket> socket)
+void RoutingProtocol::RecvMaqr (Ptr<Socket> socket)
 {
-  NS_LOG_FUNCTION(this << socket);
+  NS_LOG_FUNCTION (this << socket);
   Address sourceAddress;
-  Ptr<Packet> packet = socket->RecvFrom(sourceAddress); // read the packet source
+  Ptr<Packet> packet = socket->RecvFrom (sourceAddress);
+  InetSocketAddress inetSourceAddr = InetSocketAddress::ConvertFrom (sourceAddress);
+  Ipv4Address sender = inetSourceAddr.GetIpv4 ();
+  Ipv4Address receiver;
 
-  TypeHeader tHeader(MAQRTYPE_HELLO);
-  packet->RemoveHeader(tHeader);
-  if(!tHeader.IsValid())
+  if (m_socketAddresses.find (socket) != m_socketAddresses.end ())
   {
-    NS_LOG_DEBUG("MAQR message " << packet->GetUid() << " with unknown type received: " << tHeader.Get() << ". Ignored");
+    receiver = m_socketAddresses[socket].GetLocal ();
+  }
+  else if (m_socketSubnetBroadcastAddresses.find (socket) != m_socketSubnetBroadcastAddresses.end ())
+  {
+    receiver = m_socketSubnetBroadcastAddresses[socket].GetLocal ();
+  }
+  else
+  {
+    NS_ASSERT_MSG (false, "Received a packet from an unknown socket");
+  }
+  NS_LOG_DEBUG ("MAQR node " << this << " received a MAQR packet from " << sender << " to " << receiver);
+
+  TypeHeader tHeader (MAQRTYPE_HELLO);
+  packet->RemoveHeader (tHeader);
+  if (!tHeader.IsValid ())
+  {
+    NS_LOG_DEBUG ("MAQR message " << packet->GetUid () << " with unknown type received: " << tHeader.Get () << ". Drop");
     return;
   }
+  switch (tHeader.Get ())
+  {
+    case MAQRTYPE_HELLO:
+    {
+      ReceiveHello (packet, receiver, sender);
+      break;
+    }
+  }
+}
+
+void RoutingProtocol::ReceiveHello(Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sender)
+{
+  NS_LOG_FUNCTION(this << " src " << sender);
   HelloHeader hdr;
-  packet->RemoveHeader(hdr);
+  p->RemoveHeader(hdr);
   float maxQ;
   maxQ = hdr.GetqValue();
   Vector2D curPos;
   curPos = hdr.GetCurPosition();
-  InetSocketAddress inetSourceAddr = InetSocketAddress::ConvertFrom(sourceAddress);
-  Ipv4Address sender = inetSourceAddr.GetIpv4();
-  // Ipv4Address receiver = m_socketAddresses[socket].GetLocal();
 
   UpdateNeighbor(sender, maxQ, curPos);
 }
@@ -500,13 +628,17 @@ void RoutingProtocol::SendHello()
   {
     Ptr<Socket> socket = i->first;
     Ipv4InterfaceAddress iface = i->second;
-    HelloHeader helloHeader((uint8_t)0, (uint16_t)0, m_ipv4->GetAddress(1, 0).GetLocal(), 0.0, Vector2D(positionX, positionY));
+    HelloHeader helloHeader((uint8_t)0, (uint16_t)0, iface.GetLocal(), 0.0, Vector2D(positionX, positionY));
 
     Ptr<Packet> packet = Create<Packet>();
+    SocketIpTtlTag tag;
+    tag.SetTtl (1);
+    packet->AddPacketTag (tag);
     packet->AddHeader(helloHeader);
     TypeHeader tHeader(MAQRTYPE_HELLO);
     packet->AddHeader(tHeader);
 
+    // Send to all-hosts broadcast if on /32 addr, subnet-directed otherwise
     Ipv4Address destination;
     if(iface.GetMask() == Ipv4Mask::GetOnes())
     {

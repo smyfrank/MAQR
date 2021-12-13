@@ -15,6 +15,7 @@
 #include "ns3/ipv4-l3-protocol.h"
 #include "ns3/mobility-model.h"
 #include "ns3/controlled-random-waypoint-mobility-model.h"
+#include "ns3/wifi-mac.h"
 
 #include "ns3/timer.h"
 
@@ -141,6 +142,8 @@ public:
   uint32_t GetProtocolNumber(void) const;
   // m_socketAddresses maps socket->InterfaceAddress, reverse find socket with interface address
   Ptr<Socket> FindSocketWithInterfaceAddress(Ipv4InterfaceAddress addr) const;
+  // Find subnet directed broadcast socket with local interface address iface
+  Ptr<Socket> FindSubnetBroadcastSocketWithInterfaceAddress (Ipv4InterfaceAddress addr ) const;
 
 
   /**
@@ -153,7 +156,7 @@ public:
   /**
    * \brief Process Hello packet, then update neighbor table
    */
-  virtual void ReceiveHello (Ptr<Socket> socket);
+  virtual void ReceiveHello (Ptr<Packet> p, Ipv4Address receiver, Ipv4Address sender);
   /**
    * \brief Update neighbor table
    */
@@ -195,10 +198,21 @@ public:
 
   int64_t AssignStreams (int64_t stream);
 
+  // Receive and process control packet
+  void RecvMaqr (Ptr<Socket> socket);
+
+  /**
+   * \brief Notify that an MPDU was dropped
+   * \todo
+   */
+  void NotifyTxError (WifiMacDropReason reason, Ptr<const WifiMacQueueItem> mpdu);
+
   // IP protocol
   Ptr<Ipv4> m_ipv4;
   // Raw unicast socket per each IP interface, map socket ->iface address (IP + mask)
   std::map<Ptr<Socket>, Ipv4InterfaceAddress> m_socketAddresses;
+  /// Raw subnet directed broadcast socket per each IP interface, map socket -> iface address (IP + mask)
+  std::map< Ptr<Socket>, Ipv4InterfaceAddress > m_socketSubnetBroadcastAddresses;
   // Loopback device used to defer route request until a route is found
   Ptr<NetDevice> m_lo;
   // Nodes IP address
