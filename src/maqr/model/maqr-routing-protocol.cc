@@ -1,3 +1,6 @@
+#define NS_LOG_APPEND_CONTEXT                                   \
+  if (m_ipv4) { std::clog << "[node " << m_ipv4->GetObject<Node> ()->GetId () << "] "; }
+
 #include "maqr-routing-protocol.h"
 #include "ns3/udp-socket-factory.h"
 #include "ns3/uinteger.h"
@@ -133,7 +136,7 @@ bool RoutingProtocol::RouteInput(Ptr<const Packet> p, const Ipv4Header &header,
                                  MulticastForwardCallback mcb, LocalDeliverCallback lcb,
                                  ErrorCallback ecb)
 {
-  NS_LOG_FUNCTION (this << p->GetUid () << header.GetDestination() << idev->GetAddress ());
+  NS_LOG_FUNCTION (this << "Packet " << p->GetUid () << " from " << header.GetSource () << " to " << header.GetDestination() << idev->GetAddress ());
   if (m_socketAddresses.empty ())
   {
     NS_LOG_LOGIC ("No maqr interfaces");
@@ -148,12 +151,10 @@ bool RoutingProtocol::RouteInput(Ptr<const Packet> p, const Ipv4Header &header,
   Ipv4Address origin = header.GetSource ();
 
   // Duplicate of own packet
-  /*
   if (IsMyOwnAddress (origin))
   {
     return true;
   }
-  */
   
 
   if (dst.IsMulticast ())
@@ -550,7 +551,13 @@ void RoutingProtocol::Start()
 
   m_mobility = this->GetObject<Node>()->GetObject<MobilityModel>();
 
-  m_selfIpv4Address = m_ipv4->GetAddress(1, 0).GetLocal();
+
+}
+
+void RoutingProtocol::DoInitialize (void)
+{
+  NS_LOG_FUNCTION (this);
+  Ipv4RoutingProtocol::DoInitialize ();
 }
 
 void RoutingProtocol::RecvMaqr (Ptr<Socket> socket)
@@ -608,6 +615,7 @@ void RoutingProtocol::ReceiveHello(Ptr<Packet> p, Ipv4Address receiver, Ipv4Addr
 
 void RoutingProtocol::UpdateNeighbor(Ipv4Address origin, float qValue, Vector2D pos)
 {
+  NS_LOG_FUNCTION (this << "Update neighbor : " << origin);
   /**
    * \todo update neighbor entry
    */
@@ -648,8 +656,16 @@ void RoutingProtocol::SendHello()
     {
       destination = iface.GetBroadcast();
     }
-    socket->SendTo(packet, 0, InetSocketAddress(destination, MAQR_PORT));
+    Time jitter = Time (MilliSeconds (m_uniformRandomVariable->GetInteger (0, 10)));
+    Simulator::Schedule (jitter, &RoutingProtocol::SendTo, this, socket, packet, destination);
   }
+}
+
+void
+RoutingProtocol::SendTo (Ptr<Socket> socket, Ptr<Packet> packet, Ipv4Address destination)
+{
+  NS_LOG_FUNCTION (this << "Send packet " << packet->GetUid () << " to " << destination);
+  socket->SendTo (packet, 0, InetSocketAddress (destination, MAQR_PORT));
 }
 
 void RoutingProtocol::HelloTimerExpire()
@@ -667,6 +683,7 @@ bool RoutingProtocol::IsMyOwnAddress (Ipv4Address src)
     Ipv4InterfaceAddress iface = i->second;
     if(src == iface.GetLocal())
     {
+      NS_LOG_DEBUG (src << " is own address");
       return true;
     }
   }
@@ -719,12 +736,12 @@ bool RoutingProtocol::Forwarding (Ptr<const Packet> packet, const Ipv4Header& he
     route->SetOutputDevice (m_ipv4->GetNetDevice (1));
     NS_ASSERT (route != 0);
     NS_LOG_DEBUG ("Exist route to " << route->GetDestination () << " from interface" << route->GetOutputDevice ());
-    NS_LOG_LOGIC (m_mainAddress << " is forwarding packet" << packet->GetUid () << " to " << dst
-                  << " from " << header.GetSource () << " via nexthop neighbor " << toDst.GetNextHop ());
+    NS_LOG_LOGIC (m_ipv4->GetAddress (1, 0).GetLocal () << " is forwarding packet " << packet->GetUid () << " to " << dst
+                  << " from " << origin << " via nexthop neighbor " << nextHop);
     ucb (route, packet, header);
 
     // update Q-table
-    if (m_nb.IsNeighbor (nextHop))
+    if (m_nb.IsNeighbor (dst))
     {
       RewardType type = REACH_DESTINATION;
       UpdateQValue (dst, nextHop, type);
@@ -759,6 +776,7 @@ Ptr<Node> RoutingProtocol::GetNodeWithAddress (Ipv4Address address)
 
 float RoutingProtocol::GetMaxNextStateQValue (Ipv4Address hop, Ipv4Address target)
 {
+  NS_LOG_FUNCTION (this << "Get max Q Value from next hop " << hop << " to " << target);
   Ptr<Node> nextNode = GetNodeWithAddress (hop);
   if (nextNode == 0)
   {
@@ -791,6 +809,7 @@ float RoutingProtocol::GetMaxNextStateQValue (Ipv4Address hop, Ipv4Address targe
 float RoutingProtocol::UpdateQValue(Ipv4Address target, Ipv4Address hop, RewardType type)
 {
   // First get max Q-value amont the actions from hop to target
+  NS_LOG_FUNCTION (this << "Update Q value via " << hop << " to " << target << ". Reward type: " << type);
   float maxQ = GetMaxNextStateQValue (hop, target);
 
   float newQValue = (1 - m_qLearning.m_learningRate) * m_qLearning.m_QTable.at(target).at(hop)->GetqValue() + 

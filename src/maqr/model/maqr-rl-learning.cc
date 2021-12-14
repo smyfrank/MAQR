@@ -94,6 +94,11 @@ Ipv4Address QLearning::GetNextHop(Ipv4Address target)
 
 Ipv4Address QLearning::GetNextHop (Ipv4Address target, const std::set<Ipv4Address>& nbList)
 {
+  if (nbList.find (target) != nbList.end ())
+  {
+    return target;
+  }
+
   // exploration, randowly choose a neighbor as next hop with probability epsilon
   srand (time (NULL));
   float prob = (rand () % (1000)) / 1000.0;
@@ -102,6 +107,12 @@ Ipv4Address QLearning::GetNextHop (Ipv4Address target, const std::set<Ipv4Addres
     auto i = nbList.cbegin ();
     std::advance (i, rand () % nbList.size ());
     return *i;
+  }
+
+  // New destination entry
+  if (m_QTable.find (target) == m_QTable.end ())
+  {
+    m_QTable.insert (std::make_pair (target, std::map<Ipv4Address, QValueEntry*> ()));
   }
 
   // Insert new actions into corresponding destination or unpdate last seen time

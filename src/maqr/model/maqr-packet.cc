@@ -94,6 +94,7 @@ uint32_t TypeHeader::Deserialize(Buffer::Iterator start)
     case MAQRTYPE_HELLO:
     {
       m_type = (MessageType) type;
+      break;
     }
     default:
       m_valid = false;
