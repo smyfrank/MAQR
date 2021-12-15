@@ -64,7 +64,8 @@ void RoutingProtocol::DoDispose()
 Ptr<Ipv4Route> RoutingProtocol::RouteOutput(Ptr<Packet> p, const Ipv4Header &header, Ptr<NetDevice> oif,
                                             Socket::SocketErrno &sockerr)
 {
-  NS_LOG_FUNCTION (this << header << (oif ? oif->GetIfIndex () : 0));
+  NS_LOG_FUNCTION (this << "packet " << p->GetUid () << " source " << header.GetSource () << " destination " << header.GetDestination ()
+                  << " NetDevice " << (oif ? oif->GetIfIndex () : 0));
   if (!p)
   {
     NS_LOG_DEBUG ("Packet is == 0");
@@ -107,11 +108,18 @@ Ptr<Ipv4Route> RoutingProtocol::RouteOutput(Ptr<Packet> p, const Ipv4Header &hea
   {
     NS_LOG_DEBUG ("Destination: " << dst);
     route->SetDestination (dst);
-    route->SetSource (header.GetSource ());
+    if (header.GetSource () == Ipv4Address ("102.102.102.102"))
+    {
+      route->SetSource (m_ipv4->GetAddress (1, 0).GetLocal ());
+    }
+    else
+    {
+      route->SetSource (header.GetSource ());
+    }
     route->SetGateway (nextHop);
     route->SetOutputDevice (m_ipv4->GetNetDevice (1)); // TODO
     NS_ASSERT (route != 0);
-    NS_LOG_DEBUG ("Exist route to " << route->GetDestination () << " from interface" << route->GetSource ());
+    NS_LOG_DEBUG ("Exist route to " << route->GetDestination () << " from source " << route->GetSource ());
     if (oif != 0 && route->GetOutputDevice () != oif)
     {
       NS_LOG_DEBUG ("Output device doesn't match. Dropped.");
@@ -127,6 +135,7 @@ Ptr<Ipv4Route> RoutingProtocol::RouteOutput(Ptr<Packet> p, const Ipv4Header &hea
     routed to loopback, received from Loobback and passed to RouteInput (see below)
     \TODO: DeferredRouteOutputTag0
   */
+  NS_LOG_DEBUG ("Valid Route not found");
   return LoopbackRoute(header, oif);
 
 }
@@ -136,7 +145,7 @@ bool RoutingProtocol::RouteInput(Ptr<const Packet> p, const Ipv4Header &header,
                                  MulticastForwardCallback mcb, LocalDeliverCallback lcb,
                                  ErrorCallback ecb)
 {
-  NS_LOG_FUNCTION (this << "Packet " << p->GetUid () << " from " << header.GetSource () << " to " << header.GetDestination() << idev->GetAddress ());
+  NS_LOG_FUNCTION (this << "Packet " << p->GetUid () << " source " << header.GetSource () << " dest " << header.GetDestination() << idev->GetAddress ());
   if (m_socketAddresses.empty ())
   {
     NS_LOG_LOGIC ("No maqr interfaces");
@@ -150,11 +159,14 @@ bool RoutingProtocol::RouteInput(Ptr<const Packet> p, const Ipv4Header &header,
   Ipv4Address dst = header.GetDestination ();
   Ipv4Address origin = header.GetSource ();
 
-  // Duplicate of own packet
+  // the packet will be dropped silently if the source of input packet is this node itself
+  // comment it since MAQR could bear this kind of loop
+  /*
   if (IsMyOwnAddress (origin))
   {
     return true;
   }
+  */
   
 
   if (dst.IsMulticast ())
@@ -700,8 +712,8 @@ void RoutingProtocol::Send(Ptr<Ipv4Route> route, Ptr<const Packet> packet, const
 
 void RoutingProtocol::Drop(Ptr<const Packet> packet, const Ipv4Header &header, Socket::SocketErrno err)
 {
-  NS_LOG_DEBUG(m_mainAddress << " drop packet" << packet->GetUid() << " to "
-                             << header.GetDestination() << " from queue. Error" << err);
+  NS_LOG_FUNCTION(this << " drop packet " << packet->GetUid() << " from " << header.GetSource () << " to "
+                             << header.GetDestination() << ". Error " << err);
 }
 
 bool RoutingProtocol::Forwarding (Ptr<const Packet> packet, const Ipv4Header& header,
@@ -721,8 +733,15 @@ bool RoutingProtocol::Forwarding (Ptr<const Packet> packet, const Ipv4Header& he
    */
   if (activeNeighbors.empty ())
   {
+    NS_LOG_DEBUG ("There is no active neighbors. Drop");
     Drop (packet, header, Socket::ERROR_NOROUTETOHOST);
     return false;
+  }
+
+  NS_LOG_DEBUG ("Current active neighbors: ");
+  for (auto i = activeNeighbors.cbegin (); i != activeNeighbors.cend (); ++i)
+  {
+    NS_LOG_DEBUG (*i << " ");
   }
 
   Ipv4Address nextHop = m_qLearning.GetNextHop (dst, activeNeighbors);
@@ -753,7 +772,7 @@ bool RoutingProtocol::Forwarding (Ptr<const Packet> packet, const Ipv4Header& he
     }
     return true;
   }
-  NS_LOG_LOGIC ("Drop packet " << packet->GetUid () << " as there is no nextHop to forward if.");
+  NS_LOG_LOGIC ("Drop packet " << packet->GetUid () << " as there is no nextHop to forward it.");
   return false;
 }
 

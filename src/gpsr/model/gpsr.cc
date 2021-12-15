@@ -1066,10 +1066,10 @@ RoutingProtocol::RouteOutput (Ptr<Packet> p, const Ipv4Header &header,
           route->SetSource (header.GetSource ());
         }
       route->SetGateway (nextHop);
-      route->SetOutputDevice (m_ipv4->GetNetDevice (m_ipv4->GetInterfaceForAddress (route->GetSource ())));
+      route->SetOutputDevice (m_ipv4->GetNetDevice (1));
       route->SetDestination (header.GetDestination ());
       NS_ASSERT (route != 0);
-      NS_LOG_DEBUG ("Exist route to " << route->GetDestination () << " from interface " << route->GetSource ());
+      NS_LOG_DEBUG ("Exist route to " << route->GetDestination () << " from source " << route->GetSource ());
       if (oif != 0 && route->GetOutputDevice () != oif)
         {
           NS_LOG_DEBUG ("Output device doesn't match. Dropped.");

@@ -451,7 +451,7 @@ RoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header,
                              Ptr<const NetDevice> idev, UnicastForwardCallback ucb,
                              MulticastForwardCallback mcb, LocalDeliverCallback lcb, ErrorCallback ecb)
 {
-  NS_LOG_FUNCTION (this << p->GetUid () << header.GetDestination () << idev->GetAddress ());
+  NS_LOG_FUNCTION (this << "Packet " << p->GetUid () << " from " << header.GetSource () << " to " << header.GetDestination() << idev->GetAddress ());
   if (m_socketAddresses.empty ())
     {
       NS_LOG_LOGIC ("No aodv interfaces");

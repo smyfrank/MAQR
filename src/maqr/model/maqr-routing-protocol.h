@@ -24,6 +24,7 @@
 #include <map>
 #include <numeric>
 #include <iomanip>
+#include <string>
 
 namespace ns3 {
 namespace maqr {
