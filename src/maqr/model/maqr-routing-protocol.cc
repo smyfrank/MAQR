@@ -26,9 +26,6 @@ TypeId RoutingProtocol::GetTypeId(void)
     .SetGroupName("MAQR")
     .AddConstructor<RoutingProtocol>()
     // the access of internal member objects of a simulation
-    .AddAttribute("HelloInterval", "Periodic interval for hello packet",
-                  TimeValue(Seconds(1)),
-                  MakeTimeAccessor(&RoutingProtocol::m_helloInterval), MakeTimeChecker())
     ;
   return tid;
 }
@@ -38,7 +35,7 @@ RoutingProtocol::RoutingProtocol()
     m_maxQueueLen(64),
     m_maxQueueTime(Seconds(30)),
     m_qLearning(0.3, 0.9, 0.3, Seconds(1.1)),
-    m_helloInterval(Seconds(1)),
+    m_helloInterval(Seconds(0.2)),
     m_helloIntervalTimer(Timer::CANCEL_ON_DESTROY)
 {
   m_nb = Neighbors(Seconds(2));  // neighbor entry lifetime
@@ -719,7 +716,7 @@ void RoutingProtocol::Drop(Ptr<const Packet> packet, const Ipv4Header &header, S
 bool RoutingProtocol::Forwarding (Ptr<const Packet> packet, const Ipv4Header& header,
                                   UnicastForwardCallback ucb, ErrorCallback ecb)
 {
-  NS_LOG_FUNCTION (this);
+  NS_LOG_FUNCTION (this << "Forwarding packet " << packet->GetUid () << " src " << header.GetSource () << " dst " << header.GetDestination ());
   Ipv4Address dst = header.GetDestination ();
   Ipv4Address origin = header.GetSource ();
   m_nb.Purge ();
@@ -831,7 +828,7 @@ float RoutingProtocol::UpdateQValue(Ipv4Address target, Ipv4Address hop, RewardT
   NS_LOG_FUNCTION (this << "Update Q value via " << hop << " to " << target << ". Reward type: " << type);
   float maxQ = GetMaxNextStateQValue (hop, target);
 
-  float newQValue = (1 - m_qLearning.m_learningRate) * m_qLearning.m_QTable.at(target).at(hop)->GetqValue() + 
+  float newQValue = (1 - m_qLearning.m_learningRate) * m_qLearning.m_QTable.at (target).at (hop)->GetqValue() + 
           m_qLearning.m_learningRate * (m_qLearning.GetReward(hop, type) + m_qLearning.m_discoutRate * maxQ);
   m_qLearning.m_QTable.find (target)->second.find (hop)->second->SetqValue (newQValue);
   return newQValue;

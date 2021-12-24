@@ -93,22 +93,7 @@ Ipv4Address QLearning::GetNextHop(Ipv4Address target)
 }
 
 Ipv4Address QLearning::GetNextHop (Ipv4Address target, const std::set<Ipv4Address>& nbList)
-{
-  if (nbList.find (target) != nbList.end ())
-  {
-    return target;
-  }
-
-  // exploration, randowly choose a neighbor as next hop with probability epsilon
-  srand (time (NULL));
-  float prob = (rand () % (1000)) / 1000.0;
-  if (prob < m_epsilon)
-  {
-    auto i = nbList.cbegin ();
-    std::advance (i, rand () % nbList.size ());
-    return *i;
-  }
-
+{  
   // New destination entry
   if (m_QTable.find (target) == m_QTable.end ())
   {
@@ -131,10 +116,25 @@ Ipv4Address QLearning::GetNextHop (Ipv4Address target, const std::set<Ipv4Addres
       m_QTable.find (target)->second.find (*i)->second->SetLastSeen (Simulator::Now ());
     }
   }
-  
+
+  if (nbList.find (target) != nbList.end ())
+  {
+    return target;
+  }
+
+  // exploration, randowly choose a neighbor as next hop with probability epsilon
+  srand (time (NULL));
+  float prob = (rand () % (1000)) / 1000.0;
+  if (prob < m_epsilon)
+  {
+    auto i = nbList.cbegin ();
+    std::advance (i, rand () % nbList.size ());
+    return *i;
+  }
+
   // exploitation choose the neighbor with highest Q-value
   Ipv4Address a = Ipv4Address::GetZero ();
-  float res = -1.0;
+  float res = 0;
   if (m_QTable.find (target) != m_QTable.end ())
   {
     for (auto candidate = m_QTable.find (target)->second.begin (); candidate != m_QTable.find (target)->second.end (); ++candidate)
@@ -163,6 +163,7 @@ Ipv4Address QLearning::GetNextHop (Ipv4Address target, const std::set<Ipv4Addres
 float QLearning::GetReward(Ipv4Address hop, RewardType type)
 {
   // TODO
+  NS_LOG_FUNCTION (this);
   switch (type)
   {
     case REACH_DESTINATION:
@@ -172,7 +173,7 @@ float QLearning::GetReward(Ipv4Address hop, RewardType type)
     case LOOP:
       return -10;
     case MIDWAY:
-      return 1;
+      return 0.5;
   }
   return 0;
 }
