@@ -15,6 +15,7 @@
 *.plt
 *.routes
 *.tr
+*.csv
 [D|U]l[A-Z][a-z]*Stats.txt
 
 \#*#

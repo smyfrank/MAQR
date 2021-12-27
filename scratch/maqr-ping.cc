@@ -97,7 +97,7 @@ main (int argc, char *argv[])
 MaqrExample::MaqrExample () :
   size (5),
   step (50),
-  totalTime (1000),
+  totalTime (100),
   pcap (true),
   printRoutes (true)
 {
