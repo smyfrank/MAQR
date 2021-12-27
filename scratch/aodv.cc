@@ -114,9 +114,9 @@ int main (int argc, char **argv)
 
 //-----------------------------------------------------------------------------
 AodvExample::AodvExample () :
-  size (10),
+  size (5),
   step (50),
-  totalTime (100),
+  totalTime (1001),
   pcap (true),
   printRoutes (true)
 {
@@ -231,12 +231,14 @@ AodvExample::InstallApplications ()
   ping.SetAttribute ("Verbose", BooleanValue (true));
 
   ApplicationContainer p = ping.Install (nodes.Get (0));
-  p.Start (Seconds (0));
+  p.Start (Seconds (1));
   p.Stop (Seconds (totalTime) - Seconds (0.001));
 
+  /*
   // move node away
   Ptr<Node> node = nodes.Get (size/2);
   Ptr<MobilityModel> mob = node->GetObject<MobilityModel> ();
   Simulator::Schedule (Seconds (totalTime/3), &MobilityModel::SetPosition, mob, Vector (1e5, 1e5, 1e5));
+  */
 }
 

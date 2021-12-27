@@ -34,11 +34,11 @@ RoutingProtocol::RoutingProtocol()
   : m_queue(m_maxQueueLen, m_maxQueueTime),
     m_maxQueueLen(64),
     m_maxQueueTime(Seconds(30)),
-    m_qLearning(0.3, 0.9, 0.3, Seconds(1.1)),
+    m_qLearning(0.3, 0.9, 0.2, Seconds(1)),
     m_helloInterval(Seconds(0.2)),
     m_helloIntervalTimer(Timer::CANCEL_ON_DESTROY)
 {
-  m_nb = Neighbors(Seconds(2));  // neighbor entry lifetime
+  m_nb = Neighbors(Seconds(1));  // neighbor entry lifetime
   m_uniformRandomVariable = CreateObject<UniformRandomVariable> ();
 }
 

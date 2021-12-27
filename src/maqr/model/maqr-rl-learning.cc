@@ -173,7 +173,7 @@ float QLearning::GetReward(Ipv4Address hop, RewardType type)
     case LOOP:
       return -10;
     case MIDWAY:
-      return 0.5;
+      return 0;
   }
   return 0;
 }

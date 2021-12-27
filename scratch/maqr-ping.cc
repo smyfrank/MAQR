@@ -95,9 +95,9 @@ main (int argc, char *argv[])
 
 //---------------------------------------------------------------------
 MaqrExample::MaqrExample () :
-  size (10),
+  size (5),
   step (50),
-  totalTime (100),
+  totalTime (1000),
   pcap (true),
   printRoutes (true)
 {
@@ -211,7 +211,7 @@ void MaqrExample::InstallApplications ()
   ping.SetAttribute ("Verbose", BooleanValue (true));
 
   ApplicationContainer p = ping.Install (nodes.Get (0));
-  p.Start (Seconds (5));
+  p.Start (Seconds (1));
   p.Stop (Seconds (totalTime) - Seconds (0.001));
 
   // move node away
