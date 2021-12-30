@@ -34,7 +34,7 @@ RoutingProtocol::RoutingProtocol()
   : m_queue(m_maxQueueLen, m_maxQueueTime),
     m_maxQueueLen(64),
     m_maxQueueTime(Seconds(30)),
-    m_qLearning(0.3, 0.9, 0.2, Seconds(1)),
+    m_qLearning(0.3, 0.9, 0.3, Seconds(1)),
     m_helloInterval(Seconds(0.2)),
     m_helloIntervalTimer(Timer::CANCEL_ON_DESTROY)
 {
@@ -301,7 +301,7 @@ void RoutingProtocol::NotifyInterfaceUp(uint32_t interface)
     return;
   }
   
-  mac->TraceConnectWithoutContext ("DroppedMpdu", MakeCallback (&RoutingProtocol::NotifyTxError, this));
+  // mac->TraceConnectWithoutContext ("DroppedMpdu", MakeCallback (&RoutingProtocol::NotifyTxError, this));
 }
 
 void RoutingProtocol::NotifyTxError (WifiMacDropReason reason, Ptr<const WifiMacQueueItem> mpdu)
@@ -322,8 +322,8 @@ void RoutingProtocol::NotifyInterfaceDown(uint32_t interface)
     Ptr<WifiMac> mac = wifi->GetMac()->GetObject<AdhocWifiMac>();
     if(mac != 0)
     {
-      mac->TraceDisconnectWithoutContext ("DroppedMpdu",
-                                          MakeCallback (&RoutingProtocol::NotifyTxError, this));
+      //mac->TraceDisconnectWithoutContext ("DroppedMpdu",
+      //                                    MakeCallback (&RoutingProtocol::NotifyTxError, this));
       // m_nb.DelArpCache (l3->GetInterface (interface)->GetArpCache ());
     }
   }
