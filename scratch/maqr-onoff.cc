@@ -12,6 +12,7 @@
 #include "ns3/parrot-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/yans-wifi-helper.h"
+#include "ns3/flow-monitor-helper.h"
 
 using namespace ns3;
 
@@ -174,7 +175,7 @@ void RoutingExperiment::SetMobilityModel (int nWifis, ns3::NodeContainer &adhocN
       mobilityAdhoc.SetPositionAllocator (taPositionAlloc);
       mobilityAdhoc.Install (adhocNodes);
       streamIndex += mobilityAdhoc.AssignStreams (adhocNodes, streamIndex);
-      NS_UNUSED (streamIndex); // From this point, streamIndex is unused
+      // NS_UNUSED (streamIndex); // From this point, streamIndex is unused
     }
   }
 }
@@ -210,7 +211,7 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
 
   int nWifis = 50;
 
-  double totalTime = 100.0;
+  double totalTime = 20.0;
   std::string rate ("2048bps");
   std::string phyMode ("DsssRate11Mbps");
   std::string tr_name ("maqr-onoff");
@@ -325,9 +326,9 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
   AsciiTraceHelper ascii;
   MobilityHelper::EnableAsciiAll (ascii.CreateFileStream (tr_name + ".mob"));
 
-  //Ptr<FlowMonitor> flowmon;
-  //FlowMonitorHelper flowmonHelper;
-  //flowmon = flowmonHelper.InstallAll ();
+  Ptr<FlowMonitor> flowmon;
+  FlowMonitorHelper flowmonHelper;
+  flowmon = flowmonHelper.InstallAll ();
 
 
   NS_LOG_INFO ("Run Simulation.");
@@ -337,7 +338,7 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
   Simulator::Stop (Seconds (totalTime));
   Simulator::Run ();
 
-  //flowmon->SerializeToXmlFile ((tr_name + ".flowmon").c_str(), false, false);
+  flowmon->SerializeToXmlFile ((tr_name + ".xml").c_str(), true, true);
 
   Simulator::Destroy ();
 }
