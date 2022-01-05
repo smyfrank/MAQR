@@ -72,10 +72,13 @@ private:
 class QLearning
 {
 public:
-  QLearning(float alpha, float gamma, float epsilon, Time neighborLifeTime)
+  QLearning(float alpha, float gamma, float epsilon, float epsilonLimit, float decayRate, bool updateEpsilon, Time neighborLifeTime)
   : m_learningRate(alpha),
     m_discoutRate(gamma),
     m_epsilon(epsilon),
+    m_epsilonLowerLimit(epsilonLimit),
+    m_decayRate(decayRate),
+    m_updateEpsilon(updateEpsilon),
     m_neighborReliabilityTimeout(neighborLifeTime)
   {
   }
@@ -138,9 +141,15 @@ public:
   // Get max Q value from neighbor to destination
   // float GetMaxNextStateQValue (Ipv4Address hop, Ipv4Address target);
 
+  // Decay epsilon in each step
+  void DecayEpsilon ();
+
   float m_learningRate;
   float m_discoutRate;
   float m_epsilon;
+  float m_epsilonLowerLimit;
+  float m_decayRate;
+  bool m_updateEpsilon;
   Time m_neighborReliabilityTimeout;
   std::map<Ipv4Address, std::map<Ipv4Address, QValueEntry*>> m_QTable;
 };

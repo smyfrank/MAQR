@@ -94,6 +94,12 @@ Ipv4Address QLearning::GetNextHop(Ipv4Address target)
 
 Ipv4Address QLearning::GetNextHop (Ipv4Address target, const std::set<Ipv4Address>& nbList)
 {  
+  // decay epsilon
+  if (m_updateEpsilon)
+  {
+    DecayEpsilon();
+  }
+
   // New destination entry
   if (m_QTable.find (target) == m_QTable.end ())
   {
@@ -173,7 +179,7 @@ float QLearning::GetReward(Ipv4Address hop, RewardType type)
     case LOOP:
       return -10;
     case MIDWAY:
-      return 0;
+      return 1;
   }
   return 0;
 }
@@ -244,7 +250,13 @@ Ptr<Node> QLearning::GetNodeWithAddress (Ipv4Address address)
   return 0;
 }
 
-
+void QLearning::DecayEpsilon ()
+{
+  if (m_epsilon > m_epsilonLowerLimit)
+  {
+    m_epsilon *= m_decayRate;
+  }
+}
 
 } // namespace maqr
 } // namespace ns3

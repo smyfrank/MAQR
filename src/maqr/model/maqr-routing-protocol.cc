@@ -34,7 +34,8 @@ RoutingProtocol::RoutingProtocol()
   : m_queue(m_maxQueueLen, m_maxQueueTime),
     m_maxQueueLen(64),
     m_maxQueueTime(Seconds(30)),
-    m_qLearning(0.3, 0.9, 0.3, Seconds(1)),
+    // learning rate, discount rate, initial value of epsilon, epsilon lower limit, decay rate, entry life time
+    m_qLearning(0.8, 0.9, 0.9, 0.2, 0.99, true, Seconds(1)),
     m_helloInterval(Seconds(0.2)),
     m_helloIntervalTimer(Timer::CANCEL_ON_DESTROY)
 {

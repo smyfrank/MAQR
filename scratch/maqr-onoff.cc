@@ -5,6 +5,11 @@
 #include "ns3/internet-module.h"
 #include "ns3/mobility-module.h"
 #include "ns3/maqr-module.h"
+#include "ns3/aodv-module.h"
+#include "ns3/olsr-module.h"
+#include "ns3/dsdv-module.h"
+#include "ns3/dsr-module.h"
+#include "ns3/parrot-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/yans-wifi-helper.h"
 
@@ -23,6 +28,7 @@ private:
   Ptr<Socket> SetupPacketReceive (Ipv4Address addr, Ptr<Node> node);
   void ReceivePacket (Ptr<Socket> socket);
   void CheckThroughput ();
+  void SetMobilityModel (int nWifis, ns3::NodeContainer &adhocNodes);
 
   uint32_t port;
   uint32_t bytesTotal;
@@ -35,6 +41,7 @@ private:
   bool m_traceMobility;
   uint32_t m_protocol;
   bool m_pcap;
+  uint32_t m_mobilityModel;
 };
 
 RoutingExperiment::RoutingExperiment ()
@@ -44,7 +51,8 @@ RoutingExperiment::RoutingExperiment ()
     m_CSVfileName ("maqr-onoff.csv"),
     m_traceMobility (false),
     m_protocol (1), // MAQR
-    m_pcap (false)
+    m_pcap (false),
+    m_mobilityModel (1)
 {
 }
 
@@ -95,7 +103,7 @@ void RoutingExperiment::CheckThroughput ()
 
   out.close ();
   packetsReceived = 0;
-  Simulator::Schedule (Seconds (1.0), &RoutingExperiment::CheckThroughput, this);
+  Simulator::Schedule (Seconds (1), &RoutingExperiment::CheckThroughput, this);
 }
 
 Ptr<Socket> RoutingExperiment::SetupPacketReceive (Ipv4Address addr, Ptr<Node> node)
@@ -116,9 +124,59 @@ std::string RoutingExperiment::CommandSetup (int argc, char **argv)
   CommandLine cmd (__FILE__);
   cmd.AddValue ("CSVfileName", "The name of the CSV output file name", m_CSVfileName);
   cmd.AddValue ("traceMobility", "Enable mobility tracing", m_traceMobility);
-  cmd.AddValue ("protocol", "1=MAQR", m_protocol);
+  cmd.AddValue ("protocol", "1=MAQR;2=AODV;3=OLSR;4=DSDV;5=PARROT", m_protocol);
+  cmd.AddValue ("mobilityModel", "1=ConstantPosition;2=RandomWaypoint", m_mobilityModel);
   cmd.Parse (argc, argv);
   return m_CSVfileName;
+}
+
+void RoutingExperiment::SetMobilityModel (int nWifis, ns3::NodeContainer &adhocNodes)
+{
+  switch (m_mobilityModel)
+  {
+    case 1:
+    {
+      MobilityHelper mobility;
+      mobility.SetPositionAllocator ("ns3::GridPositionAllocator",
+                                    "MinX", DoubleValue (0.0),
+                                    "MinY", DoubleValue (0.0),
+                                    "DeltaX", DoubleValue (10),
+                                    "DeltaY", DoubleValue (10),
+                                    "GridWidth", UintegerValue (10),
+                                    "LayoutType", StringValue ("RowFirst"));
+      mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+      mobility.Install (adhocNodes);
+      break;
+    }
+    case 2:
+    {
+      int nodeSpeed = 4; //in m/s
+      int nodePause = 0; //in s
+      MobilityHelper mobilityAdhoc;
+      int64_t streamIndex = 0; // used to get consistent mobility across scenarios
+
+      ObjectFactory pos;
+      pos.SetTypeId ("ns3::RandomRectanglePositionAllocator");
+      pos.Set ("X", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=300.0]"));
+      pos.Set ("Y", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=300.0]"));
+
+      Ptr<PositionAllocator> taPositionAlloc = pos.Create ()->GetObject<PositionAllocator> ();
+      streamIndex += taPositionAlloc->AssignStreams (streamIndex);
+
+      std::stringstream ssSpeed;
+      ssSpeed << "ns3::UniformRandomVariable[Min=0.0|Max=" << nodeSpeed << "]";
+      std::stringstream ssPause;
+      ssPause << "ns3::ConstantRandomVariable[Constant=" << nodePause << "]";
+      mobilityAdhoc.SetMobilityModel ("ns3::RandomWaypointMobilityModel",
+                                      "Speed", StringValue (ssSpeed.str ()),
+                                      "Pause", StringValue (ssPause.str ()),
+                                      "PositionAllocator", PointerValue (taPositionAlloc));
+      mobilityAdhoc.SetPositionAllocator (taPositionAlloc);
+      mobilityAdhoc.Install (adhocNodes);
+      streamIndex += mobilityAdhoc.AssignStreams (adhocNodes, streamIndex);
+      NS_UNUSED (streamIndex); // From this point, streamIndex is unused
+    }
+  }
 }
 
 int main (int argc, char **argv)
@@ -152,12 +210,10 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
 
   int nWifis = 50;
 
-  double totalTime = 200.0;
+  double totalTime = 100.0;
   std::string rate ("2048bps");
   std::string phyMode ("DsssRate11Mbps");
   std::string tr_name ("maqr-onoff");
-  int nodeSpeed = 2; //in m/s
-  int nodePause = 0; //in s
   m_protocolName = "protocol";
 
   Config::SetDefault ("ns3::OnOffApplication::PacketSize", StringValue ("64"));
@@ -196,57 +252,44 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
     wifiPhy.EnablePcapAll (std::string ("maqr"));
   }
 
-  /*
-  MobilityHelper mobility;
-  mobility.SetPositionAllocator ("ns3::GridPositionAllocator",
-                                 "MinX", DoubleValue (0.0),
-                                 "MinY", DoubleValue (0.0),
-                                 "DeltaX", DoubleValue (5),
-                                 "DeltaY", DoubleValue (0),
-                                 "GridWidth", UintegerValue (nWifis),
-                                 "LayoutType", StringValue ("RowFirst"));
-  mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
-  mobility.Install (adhocNodes);
-  */
-
-  MobilityHelper mobilityAdhoc;
-  int64_t streamIndex = 0; // used to get consistent mobility across scenarios
-
-  ObjectFactory pos;
-  pos.SetTypeId ("ns3::RandomRectanglePositionAllocator");
-  pos.Set ("X", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=300.0]"));
-  pos.Set ("Y", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=300.0]"));
-
-  Ptr<PositionAllocator> taPositionAlloc = pos.Create ()->GetObject<PositionAllocator> ();
-  streamIndex += taPositionAlloc->AssignStreams (streamIndex);
-
-  std::stringstream ssSpeed;
-  ssSpeed << "ns3::UniformRandomVariable[Min=0.0|Max=" << nodeSpeed << "]";
-  std::stringstream ssPause;
-  ssPause << "ns3::ConstantRandomVariable[Constant=" << nodePause << "]";
-  mobilityAdhoc.SetMobilityModel ("ns3::RandomWaypointMobilityModel",
-                                  "Speed", StringValue (ssSpeed.str ()),
-                                  "Pause", StringValue (ssPause.str ()),
-                                  "PositionAllocator", PointerValue (taPositionAlloc));
-  mobilityAdhoc.SetPositionAllocator (taPositionAlloc);
-  mobilityAdhoc.Install (adhocNodes);
-  streamIndex += mobilityAdhoc.AssignStreams (adhocNodes, streamIndex);
-  NS_UNUSED (streamIndex); // From this point, streamIndex is unused
-
+  SetMobilityModel (nWifis, adhocNodes);
 
   MaqrHelper maqr;
+  AodvHelper aodv;
+  OlsrHelper olsr;
+  DsdvHelper dsdv;
+  PARRoTHelper parrot;
+  DsrHelper dsr;
+  Ipv4ListRoutingHelper list;
   InternetStackHelper internet;
 
   switch (m_protocol)
   {
     case 1:
+      list.Add (maqr, 100);
       m_protocolName = "MAQR";
+      break;
+    case 2:
+      list.Add (aodv, 100);
+      m_protocolName = "AODV";
+      break;
+    case 3:
+      list.Add (olsr, 100);
+      m_protocolName = "OLSR";
+      break;
+    case 4:
+      list.Add (dsdv, 100);
+      m_protocolName = "DSDV";
+      break;
+    case 5:
+      list.Add (parrot, 100);
+      m_protocolName = "PARROT";
       break;
     default:
       NS_FATAL_ERROR ("No such protocol:" << m_protocol);
   }
 
-  internet.SetRoutingHelper (maqr);
+  internet.SetRoutingHelper (list);
   internet.Install (adhocNodes);
 
   NS_LOG_INFO ("assigning ip address");
@@ -269,25 +312,9 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
 
     Ptr<UniformRandomVariable> var = CreateObject<UniformRandomVariable> ();
     ApplicationContainer temp = onoff1.Install (adhocNodes.Get (i + nSinks));
-    temp.Start (Seconds (var->GetValue (100.0, 101.0)));
+    temp.Start (Seconds (var->GetValue (10.0, 11.0)));
     temp.Stop (Seconds (totalTime));
   }
-
-  std::stringstream ss;
-  ss << nWifis;
-  std::string nodes = ss.str ();
-
-  std::stringstream ss2;
-  ss2 << nodeSpeed;
-  std::string sNodeSpeed = ss2.str ();
-
-  std::stringstream ss3;
-  ss3 << nodePause;
-  std::string sNodePause = ss3.str ();
-
-  std::stringstream ss4;
-  ss4 << rate;
-  std::string sRate = ss4.str ();
 
   //NS_LOG_INFO ("Configure Tracing.");
   //tr_name = tr_name + "_" + m_protocolName +"_" + nodes + "nodes_" + sNodeSpeed + "speed_" + sNodePause + "pause_" + sRate + "rate";
