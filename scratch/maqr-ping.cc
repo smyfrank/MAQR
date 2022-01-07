@@ -107,7 +107,7 @@ MaqrExample::MaqrExample () :
 bool MaqrExample::Configure (int argc, char **argv)
 {
   // Enable MAQR logs by default. Comment this if too noisy
-  LogComponentEnable("MaqrRoutingProtocol", LOG_LEVEL_ALL);
+  // LogComponentEnable("MaqrRoutingProtocol", LOG_LEVEL_ALL);
 
   SeedManager::SetSeed (12345);
   CommandLine cmd (__FILE__);
@@ -211,7 +211,7 @@ void MaqrExample::InstallApplications ()
   ping.SetAttribute ("Verbose", BooleanValue (true));
 
   ApplicationContainer p = ping.Install (nodes.Get (0));
-  p.Start (Seconds (1));
+  p.Start (Seconds (50));
   p.Stop (Seconds (totalTime) - Seconds (0.001));
 
   // move node away

@@ -16,6 +16,7 @@
 *.routes
 *.tr
 *.csv
+*.xml
 [D|U]l[A-Z][a-z]*Stats.txt
 
 \#*#

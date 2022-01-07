@@ -211,7 +211,7 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
 
   int nWifis = 50;
 
-  double totalTime = 20.0;
+  double totalTime = 100.0;
   std::string rate ("2048bps");
   std::string phyMode ("DsssRate11Mbps");
   std::string tr_name ("maqr-onoff");
@@ -324,7 +324,7 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
   //Ptr<OutputStreamWrapper> osw = ascii.CreateFileStream ( (tr_name + ".tr").c_str());
   //wifiPhy.EnableAsciiAll (osw);
   AsciiTraceHelper ascii;
-  MobilityHelper::EnableAsciiAll (ascii.CreateFileStream (tr_name + ".mob"));
+  MobilityHelper::EnableAsciiAll (ascii.CreateFileStream (m_CSVfileName + ".mob"));
 
   Ptr<FlowMonitor> flowmon;
   FlowMonitorHelper flowmonHelper;
@@ -338,7 +338,7 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
   Simulator::Stop (Seconds (totalTime));
   Simulator::Run ();
 
-  flowmon->SerializeToXmlFile ((tr_name + ".xml").c_str(), true, true);
+  flowmon->SerializeToXmlFile ((m_CSVfileName + ".xml").c_str(), true, true);
 
   Simulator::Destroy ();
 }
