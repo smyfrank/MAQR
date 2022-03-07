@@ -117,7 +117,7 @@ public:
    * \param nbList the active neighbors
    * \returns the next hop for the target node
    */
-  Ipv4Address GetNextHop (Ipv4Address target, const std::set<Ipv4Address>& nbList);
+  virtual Ipv4Address GetNextHop (Ipv4Address target, const std::set<Ipv4Address>& nbList);
   /**
    * \brief Reward function
    * \param origin the origin address (state)
@@ -152,6 +152,44 @@ public:
   bool m_updateEpsilon;
   Time m_neighborReliabilityTimeout;
   std::map<Ipv4Address, std::map<Ipv4Address, QValueEntry*>> m_QTable;
+};
+
+class MultiAgentQLearning : public QLearning
+{
+public:
+  MultiAgentQLearning (float alpha, float gamma, float epsilon, float epsilonLimit, float decayRate,
+                       bool updateEpsilon, Time neighborLifeTime, float deltaWin, float deltaLose)
+  : QLearning (alpha, gamma, epsilon, epsilonLimit, decayRate, updateEpsilon, neighborLifeTime),
+    m_deltaWin (deltaWin),
+    m_deltaLose (deltaLose)
+  {
+  }
+
+  ~MultiAgentQLearning ()
+  {
+  }
+  // initialization
+  void Init (const std::set<Ipv4Address>& allNodes);
+  // init counter
+  void GenerateCounter (const std::set<Ipv4Address>& allNodes);
+  // init average estimation strategy table and strategy table
+  void GenerateSrategyTable (const std::set<Ipv4Address>& allNodes);
+  // Get next hop (act)
+  virtual Ipv4Address GetNextHop (Ipv4Address dst, const std::set<Ipv4Address>& nbList);
+  // Update Q-table, strategy table, average estimation strategy table
+  void Learn (Ipv4Address dst, Ipv4Address hop, RewardType reward);
+  // Choose m_deltaWin or m_deltaLose
+  float ChooseDelta (Ipv4Address dst, Ipv4Address hop);
+  // update strategy table
+  void UpdateStrategy (Ipv4Address dst, Ipv4Address hop);
+  // update average strategy table
+  void UpdateAvgStrategy (Ipv4Address dst, Ipv4Address hop);
+
+  float m_deltaWin;
+  float m_deltaLose;
+  std::map<Ipv4Address, std::map<Ipv4Address, float>> m_avgStrategy;
+  std::map<Ipv4Address, std::map<Ipv4Address, float>> m_strategy;
+  std::map<Ipv4Address, int> m_counter;
 };
 
 }

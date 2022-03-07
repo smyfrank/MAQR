@@ -258,5 +258,41 @@ void QLearning::DecayEpsilon ()
   }
 }
 
+void MultiAgentQLearning::Init (const std::set<Ipv4Address>& allNodes)
+{
+  NS_LOG_FUNCTION (this);
+  GenerateCounter (allNodes);
+  GenerateSrategyTable (allNodes);
+  return;
+}
+
+void MultiAgentQLearning::GenerateCounter (const std::set<Ipv4Address>& allNodes)
+{
+  NS_LOG_FUNCTION (this);
+  for (const auto& i : allNodes)
+  {
+    m_counter.insert (std::pair<Ipv4Address, int> (i, 0));
+  }
+  return;
+}
+
+void MultiAgentQLearning::GenerateSrategyTable (const std::set<Ipv4Address>& allNodes)
+{
+  NS_LOG_FUNCTION (this);
+  int nnodes = allNodes.size ();
+  for (const auto& dst : allNodes)
+  {
+    for (const auto& hop : allNodes)
+    {
+      if (dst != hop)
+      {
+        m_avgStrategy[dst][hop] = 1.0 / (nnodes - 1);
+        m_strategy[dst][hop] = 1.0 / (nnodes - 1);
+      }
+    }
+  }
+  return;
+}
+
 } // namespace maqr
 } // namespace ns3
