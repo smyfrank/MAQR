@@ -11,6 +11,8 @@
 #include <cstdlib>
 #include <ctime>
 #include <algorithm>
+#include <numeric>
+#include <random>
 
 namespace ns3 {
 namespace maqr {

@@ -271,7 +271,7 @@ void MultiAgentQLearning::GenerateCounter (const std::set<Ipv4Address>& allNodes
   NS_LOG_FUNCTION (this);
   for (const auto& i : allNodes)
   {
-    m_counter.insert (std::pair<Ipv4Address, int> (i, 0));
+    m_counter[i] = 0;
   }
   return;
 }
@@ -292,6 +292,61 @@ void MultiAgentQLearning::GenerateSrategyTable (const std::set<Ipv4Address>& all
     }
   }
   return;
+}
+
+Ipv4Address MultiAgentQLearning::GetNextHop (Ipv4Address dst, const std::set<Ipv4Address>& nbList)
+{
+  if (m_updateEpsilon)
+  {
+    DecayEpsilon ();
+  }
+
+  // if dst is one of neighbors
+  if (nbList.find (dst) != nbList.end ())
+  {
+    return dst;
+  }
+
+  // exploration, randowly choose a neighbor as next hop with probability epsilon
+  srand (time (NULL));
+  float prob = (rand () % (1000)) / 1000.0;
+  if (prob < m_epsilon)
+  {
+    auto i = nbList.cbegin ();
+    std::advance (i, rand () % nbList.size ());
+    return *i;
+  }
+
+  // choose next hop by weights (sum of prefix and binary search)
+  std::map<int, Ipv4Address> idxToAddr;
+  std::vector<float> preSum;
+  int index = 0;
+  for (auto i = m_strategy[dst].begin (); i != m_strategy[dst].end (); ++i)
+  {
+    if (nbList.find (i->first) != nbList.end ())
+    {
+      if (index == 0)
+      {
+        preSum.push_back (i->second);
+        idxToAddr[index] = i->first;
+        index++;
+      }
+      else
+      {
+        preSum.push_back (preSum[index - 1] + i->second);
+        idxToAddr[index] = i->first;
+        index++;
+      }
+    }
+  }
+  std::random_device rd;
+  std::default_random_engine eng {rd()};
+  std::uniform_real_distribution<double> dis(0, preSum.back ());
+  double tmp = dis (eng);
+  int pos = std::lower_bound (preSum.begin (), preSum.end (), tmp) - preSum.begin ();
+  Ipv4Address act = idxToAddr[pos];
+
+  return act;
 }
 
 } // namespace maqr
