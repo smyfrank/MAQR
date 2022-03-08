@@ -263,6 +263,7 @@ void MultiAgentQLearning::Init (const std::set<Ipv4Address>& allNodes)
   NS_LOG_FUNCTION (this);
   GenerateCounter (allNodes);
   GenerateSrategyTable (allNodes);
+  GenerateQTable (allNodes);
   return;
 }
 
@@ -289,9 +290,27 @@ void MultiAgentQLearning::GenerateSrategyTable (const std::set<Ipv4Address>& all
         m_avgStrategy[dst][hop] = 1.0 / (nnodes - 1);
         m_strategy[dst][hop] = 1.0 / (nnodes - 1);
       }
+      else
+      {
+        m_avgStrategy[dst][hop] = 0.0;
+        m_strategy[dst][hop] = 0.0;
+      }
     }
   }
   return;
+}
+
+void MultiAgentQLearning::GenerateQTable (const std::set<Ipv4Address>& allNodes)
+{
+  NS_LOG_FUNCTION (this);
+  int nnodes = allNodes.size ();
+  for (const auto& dst : allNodes)
+  {
+    for (const auto& hop : allNodes)
+    {
+      m_multiQTable[dst][hop] = 0;
+    }
+  }
 }
 
 Ipv4Address MultiAgentQLearning::GetNextHop (Ipv4Address dst, const std::set<Ipv4Address>& nbList)
@@ -347,6 +366,18 @@ Ipv4Address MultiAgentQLearning::GetNextHop (Ipv4Address dst, const std::set<Ipv
   Ipv4Address act = idxToAddr[pos];
 
   return act;
+}
+
+float MultiAgentQLearning::ChooseDelta (Ipv4Address dst, Ipv4Address hop)
+{
+  float stratSum = 0.0, meanStratSum = 0.0;
+  for (auto i = m_strategy[dst].begin (); i != m_strategy[dst].end (); ++i)
+  {
+    stratSum += i->second * m_multiQTable[dst][i->first];
+    meanStratSum += m_avgStrategy[dst][i->first] * m_multiQTable[dst][i->first];
+  }
+
+  return stratSum > meanStratSum ? m_deltaWin : m_deltaLose;
 }
 
 } // namespace maqr

@@ -176,6 +176,8 @@ public:
   void GenerateCounter (const std::set<Ipv4Address>& allNodes);
   // init average estimation strategy table and strategy table
   void GenerateSrategyTable (const std::set<Ipv4Address>& allNodes);
+  // Generate Q-table
+  void GenerateQTable (const std::set<Ipv4Address>& allNodes);
   // Get next hop (act)
   virtual Ipv4Address GetNextHop (Ipv4Address dst, const std::set<Ipv4Address>& nbList);
   // Update Q-table, strategy table, average estimation strategy table
@@ -192,6 +194,7 @@ public:
   std::map<Ipv4Address, std::map<Ipv4Address, float>> m_avgStrategy;
   std::map<Ipv4Address, std::map<Ipv4Address, float>> m_strategy;
   std::map<Ipv4Address, int> m_counter;
+  std::map<Ipv4Address, std::map<Ipv4Address, float>> m_multiQTable;
 };
 
 }
