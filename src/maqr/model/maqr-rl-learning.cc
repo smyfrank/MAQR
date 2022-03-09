@@ -303,7 +303,6 @@ void MultiAgentQLearning::GenerateSrategyTable (const std::set<Ipv4Address>& all
 void MultiAgentQLearning::GenerateQTable (const std::set<Ipv4Address>& allNodes)
 {
   NS_LOG_FUNCTION (this);
-  int nnodes = allNodes.size ();
   for (const auto& dst : allNodes)
   {
     for (const auto& hop : allNodes)
@@ -366,6 +365,25 @@ Ipv4Address MultiAgentQLearning::GetNextHop (Ipv4Address dst, const std::set<Ipv
   Ipv4Address act = idxToAddr[pos];
 
   return act;
+}
+
+void MultiAgentQLearning::Learn (Ipv4Address dst, Ipv4Address hop, RewardType rewardType, float maxNextQ)
+{
+  NS_LOG_FUNCTION (this << "learn dst " << dst << " hop " << hop << " rewardType " << rewardType);
+  if (hop == Ipv4Address ("102.102.102.102"))
+  {
+    NS_LOG_LOGIC ("No hop was executed");
+    return;
+  }
+
+  // update Q table
+  m_multiQTable[dst][hop] = m_multiQTable[dst][hop] + m_learningRate * (GetReward (hop, rewardType) + m_discoutRate * maxNextQ - m_multiQTable[dst][hop]);
+  // update average strategy
+  UpdateAvgStrategy (dst);
+  // update strategy
+  UpdateStrategy (dst);
+
+  return;
 }
 
 float MultiAgentQLearning::ChooseDelta (Ipv4Address dst)

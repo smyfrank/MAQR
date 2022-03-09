@@ -182,7 +182,7 @@ public:
   // Get next hop (act)
   virtual Ipv4Address GetNextHop (Ipv4Address dst, const std::set<Ipv4Address>& nbList);
   // Update Q-table, strategy table, average estimation strategy table
-  void Learn (Ipv4Address dst, Ipv4Address hop, RewardType reward);
+  void Learn (Ipv4Address dst, Ipv4Address hop, RewardType rewardType, float maxNextQ);
   // Choose m_deltaWin or m_deltaLose
   float ChooseDelta (Ipv4Address dst);
   // update strategy table

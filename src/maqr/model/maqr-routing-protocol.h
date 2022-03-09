@@ -243,7 +243,7 @@ public:
   ErrorCallback m_ecb;
 
   // Q-Learning algorithm
-  QLearning m_qLearning;
+  MultiAgentQLearning m_marl;
   // Hello interval
   Time m_helloInterval;
   // Hello timer
