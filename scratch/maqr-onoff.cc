@@ -10,6 +10,7 @@
 #include "ns3/dsdv-module.h"
 #include "ns3/dsr-module.h"
 #include "ns3/parrot-module.h"
+#include "ns3/saqr-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/yans-wifi-helper.h"
 #include "ns3/flow-monitor-helper.h"
@@ -125,7 +126,7 @@ std::string RoutingExperiment::CommandSetup (int argc, char **argv)
   CommandLine cmd (__FILE__);
   cmd.AddValue ("CSVfileName", "The name of the CSV output file name", m_CSVfileName);
   cmd.AddValue ("traceMobility", "Enable mobility tracing", m_traceMobility);
-  cmd.AddValue ("protocol", "1=MAQR;2=AODV;3=OLSR;4=DSDV;5=PARROT", m_protocol);
+  cmd.AddValue ("protocol", "1=MAQR;2=AODV;3=OLSR;4=DSDV;5=PARROT;6=SAQR", m_protocol);
   cmd.AddValue ("mobilityModel", "1=ConstantPosition;2=RandomWaypoint", m_mobilityModel);
   cmd.Parse (argc, argv);
   return m_CSVfileName;
@@ -260,6 +261,7 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
   OlsrHelper olsr;
   DsdvHelper dsdv;
   PARRoTHelper parrot;
+  SaqrHelper saqr;
   DsrHelper dsr;
   Ipv4ListRoutingHelper list;
   InternetStackHelper internet;
@@ -285,6 +287,10 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
     case 5:
       list.Add (parrot, 100);
       m_protocolName = "PARROT";
+      break;
+    case 6:
+      list.Add (saqr, 100);
+      m_protocolName = "SAQR";
       break;
     default:
       NS_FATAL_ERROR ("No such protocol:" << m_protocol);
@@ -324,7 +330,7 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
   //Ptr<OutputStreamWrapper> osw = ascii.CreateFileStream ( (tr_name + ".tr").c_str());
   //wifiPhy.EnableAsciiAll (osw);
   AsciiTraceHelper ascii;
-  MobilityHelper::EnableAsciiAll (ascii.CreateFileStream (m_CSVfileName + ".mob"));
+  // MobilityHelper::EnableAsciiAll (ascii.CreateFileStream (m_CSVfileName + ".mob"));
 
   Ptr<FlowMonitor> flowmon;
   FlowMonitorHelper flowmonHelper;
