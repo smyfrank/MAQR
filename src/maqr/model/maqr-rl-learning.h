@@ -160,10 +160,11 @@ class MultiAgentQLearning : public QLearning
 {
 public:
   MultiAgentQLearning (float alpha, float gamma, float epsilon, float epsilonLimit, float decayRate,
-                       bool updateEpsilon, Time neighborLifeTime, float deltaWin, float deltaLose)
+                       bool updateEpsilon, Time neighborLifeTime, float deltaWin, float deltaLose, int nnodes)
   : QLearning (alpha, gamma, epsilon, epsilonLimit, decayRate, updateEpsilon, neighborLifeTime),
     m_deltaWin (deltaWin),
-    m_deltaLose (deltaLose)
+    m_deltaLose (deltaLose),
+    m_nnodes (nnodes)
   {
   }
 
@@ -183,11 +184,11 @@ public:
   // Update Q-table, strategy table, average estimation strategy table
   void Learn (Ipv4Address dst, Ipv4Address hop, RewardType reward);
   // Choose m_deltaWin or m_deltaLose
-  float ChooseDelta (Ipv4Address dst, Ipv4Address hop);
+  float ChooseDelta (Ipv4Address dst);
   // update strategy table
-  void UpdateStrategy (Ipv4Address dst, Ipv4Address hop);
+  void UpdateStrategy (Ipv4Address dst);
   // update average strategy table
-  void UpdateAvgStrategy (Ipv4Address dst, Ipv4Address hop);
+  void UpdateAvgStrategy (Ipv4Address dst);
 
   float m_deltaWin;
   float m_deltaLose;
@@ -195,6 +196,7 @@ public:
   std::map<Ipv4Address, std::map<Ipv4Address, float>> m_strategy;
   std::map<Ipv4Address, int> m_counter;
   std::map<Ipv4Address, std::map<Ipv4Address, float>> m_multiQTable;
+  int m_nnodes;
 };
 
 }

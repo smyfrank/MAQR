@@ -368,7 +368,7 @@ Ipv4Address MultiAgentQLearning::GetNextHop (Ipv4Address dst, const std::set<Ipv
   return act;
 }
 
-float MultiAgentQLearning::ChooseDelta (Ipv4Address dst, Ipv4Address hop)
+float MultiAgentQLearning::ChooseDelta (Ipv4Address dst)
 {
   float stratSum = 0.0, meanStratSum = 0.0;
   for (auto i = m_strategy[dst].begin (); i != m_strategy[dst].end (); ++i)
@@ -378,6 +378,47 @@ float MultiAgentQLearning::ChooseDelta (Ipv4Address dst, Ipv4Address hop)
   }
 
   return stratSum > meanStratSum ? m_deltaWin : m_deltaLose;
+}
+
+void MultiAgentQLearning::UpdateStrategy (Ipv4Address dst)
+{
+  // find the action with the highest Q-value
+  Ipv4Address maxQIdx = m_multiQTable[dst].begin()->first;
+  float maxQ = m_multiQTable[dst].begin ()->second;
+  for (const auto& i : m_multiQTable[dst])
+  {
+    if (i.second > maxQ)
+    {
+      maxQIdx = i.first;
+      maxQ = i.second;
+    }
+  }
+
+  // update strategy table
+  for (auto i = m_strategy[dst].begin (); i != m_strategy[dst].end (); ++i)
+  {
+    float dPlus = ChooseDelta (dst);
+    float dMinus = (-1.0) * dPlus / ((m_nnodes - 1) - 1.0);
+    if (i->first == maxQIdx)
+    {
+      i->second = std::min (float(1.0), i->second + dPlus);
+    }
+    else
+    {
+      i->second = std::max (float(0.0), i->second + dMinus);
+    }
+  }
+  return;
+}
+
+void MultiAgentQLearning::UpdateAvgStrategy (Ipv4Address dst)
+{
+  m_counter[dst] += 1;
+  for (auto i = m_avgStrategy[dst].begin (); i != m_avgStrategy[dst].end (); ++i)
+  {
+    i->second += 1.0 / m_counter[dst] * (m_strategy[dst][i->first] - i->second);
+  }
+  return;
 }
 
 } // namespace maqr
