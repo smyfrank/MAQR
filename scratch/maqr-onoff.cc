@@ -14,6 +14,7 @@
 #include "ns3/applications-module.h"
 #include "ns3/yans-wifi-helper.h"
 #include "ns3/flow-monitor-helper.h"
+#include "ns3/flow-monitor-module.h"
 
 using namespace ns3;
 
@@ -218,6 +219,10 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
   std::string tr_name ("maqr-onoff");
   m_protocolName = "protocol";
 
+  uint32_t sentPackets = 0;
+  uint32_t receivedPackets = 0;
+  uint32_t lostPackets = 0;
+
   Config::SetDefault ("ns3::OnOffApplication::PacketSize", StringValue ("64"));
   Config::SetDefault ("ns3::OnOffApplication::DataRate", StringValue (rate));
 
@@ -332,9 +337,8 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
   AsciiTraceHelper ascii;
   // MobilityHelper::EnableAsciiAll (ascii.CreateFileStream (m_CSVfileName + ".mob"));
 
-  Ptr<FlowMonitor> flowmon;
-  FlowMonitorHelper flowmonHelper;
-  flowmon = flowmonHelper.InstallAll ();
+  FlowMonitorHelper flowmon;
+  Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
 
 
   NS_LOG_INFO ("Run Simulation.");
@@ -344,7 +348,48 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
   Simulator::Stop (Seconds (totalTime));
   Simulator::Run ();
 
-  flowmon->SerializeToXmlFile ((m_CSVfileName + ".xml").c_str(), true, true);
+  int j = 0;
+  float avgThroughput = 0;
+  Time jitter;
+  Time delay;
+  Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
+  std::map<FlowId, FlowMonitor::FlowStats> stats = monitor->GetFlowStats ();
+  for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator iter = stats.begin (); iter != stats.end (); ++iter)
+  {
+    Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (iter->first);
+    NS_LOG_UNCOND ("----Flow ID:" << iter->first);
+    NS_LOG_UNCOND ("Src Addr=" << t.sourceAddress << " Dst Addr=" << t.destinationAddress);
+    NS_LOG_UNCOND ("Send Packets=" << iter->second.txPackets);
+    NS_LOG_UNCOND ("Received Packets=" << iter->second.rxPackets);
+    NS_LOG_UNCOND ("Lost Packets=" << iter->second.txPackets-iter->second.rxPackets);
+    NS_LOG_UNCOND ("Packet delivery ratio=" << iter->second.rxPackets * 100 / iter->second.txPackets << "%");
+    NS_LOG_UNCOND ("Packet loss ratio=" << (iter->second.txPackets-iter->second.rxPackets) * 100 / iter->second.txPackets << "%");
+    NS_LOG_UNCOND ("Delay=" << iter->second.delaySum);
+    NS_LOG_UNCOND ("Jitter=" << iter->second.jitterSum);
+    NS_LOG_UNCOND ("Throughput=" << iter->second.rxBytes * 8.0 / (iter->second.timeLastRxPacket.GetSeconds () - iter->second.timeFirstTxPacket.GetSeconds ()) / 1024 << "Kbps");
+
+    sentPackets += (iter->second.txPackets);
+    receivedPackets += (iter->second.rxPackets);
+    lostPackets += (iter->second.txPackets - iter->second.rxPackets);
+    avgThroughput += (iter->second.rxBytes * 8.0 / (iter->second.timeLastRxPacket.GetSeconds () - iter->second.timeFirstTxPacket.GetSeconds ()) / 1024);
+    delay += (iter->second.delaySum);
+    jitter += (iter->second.jitterSum);
+
+    j++;
+  }
+  avgThroughput /= j;
+  NS_LOG_UNCOND ("--------Total Results of the simulation-------");
+  NS_LOG_UNCOND ("Total sent packets=" << sentPackets);
+  NS_LOG_UNCOND ("Total received packets=" << receivedPackets);
+  NS_LOG_UNCOND ("Total lost packets=" << lostPackets);
+  NS_LOG_UNCOND ("Packet loss ratio=" << ((lostPackets * 100) / sentPackets) << "%");
+  NS_LOG_UNCOND ("Packet delivery ratio=" << ((receivedPackets * 100) / sentPackets) << "%");
+  NS_LOG_UNCOND ("Average throughput=" << avgThroughput << "Kbps");
+  NS_LOG_UNCOND ("End to end delay=" << delay);
+  NS_LOG_UNCOND ("End to end jitter delay=" << jitter);
+  NS_LOG_UNCOND ("Total Flod id=" << j);
+
+  monitor->SerializeToXmlFile ((m_protocolName + ".xml").c_str(), true, true);
 
   Simulator::Destroy ();
 }
