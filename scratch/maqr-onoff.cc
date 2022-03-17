@@ -385,8 +385,8 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
   NS_LOG_UNCOND ("Packet loss ratio=" << ((lostPackets * 100) / sentPackets) << "%");
   NS_LOG_UNCOND ("Packet delivery ratio=" << ((receivedPackets * 100) / sentPackets) << "%");
   NS_LOG_UNCOND ("Average throughput=" << avgThroughput << "Kbps");
-  NS_LOG_UNCOND ("End to end delay=" << delay);
-  NS_LOG_UNCOND ("End to end jitter delay=" << jitter);
+  NS_LOG_UNCOND ("End to end delay=" << delay / receivedPackets);
+  NS_LOG_UNCOND ("End to end jitter delay=" << jitter / receivedPackets);
   NS_LOG_UNCOND ("Total Flod id=" << j);
 
   monitor->SerializeToXmlFile ((m_protocolName + ".xml").c_str(), true, true);
