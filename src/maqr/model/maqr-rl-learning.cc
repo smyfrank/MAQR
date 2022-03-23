@@ -166,20 +166,20 @@ Ipv4Address QLearning::GetNextHop (Ipv4Address target, const std::set<Ipv4Addres
   return a;
 }
 
-float QLearning::GetReward(Ipv4Address hop, RewardType type)
+float QLearning::GetReward(Ipv4Address hop, RewardType type, float mobFactor)
 {
   // TODO
   NS_LOG_FUNCTION (this);
   switch (type)
   {
     case REACH_DESTINATION:
-      return 10;
+      return 46;
     case VOID_AREA:
-      return -10;
+      return -20;
     case LOOP:
-      return -10;
+      return -20;
     case MIDWAY:
-      return 1;
+      return mobFactor;
   }
   return 0;
 }
@@ -367,7 +367,7 @@ Ipv4Address MultiAgentQLearning::GetNextHop (Ipv4Address dst, const std::set<Ipv
   return act;
 }
 
-void MultiAgentQLearning::Learn (Ipv4Address dst, Ipv4Address hop, RewardType rewardType, float maxNextQ)
+void MultiAgentQLearning::Learn (Ipv4Address dst, Ipv4Address hop, RewardType rewardType, float maxNextQ, float mobFactor)
 {
   NS_LOG_FUNCTION (this << "learn dst " << dst << " hop " << hop << " rewardType " << rewardType);
   if (hop == Ipv4Address ("102.102.102.102"))
@@ -377,7 +377,7 @@ void MultiAgentQLearning::Learn (Ipv4Address dst, Ipv4Address hop, RewardType re
   }
 
   // update Q table
-  m_multiQTable[dst][hop] = m_multiQTable[dst][hop] + m_learningRate * (GetReward (hop, rewardType) + m_discoutRate * maxNextQ - m_multiQTable[dst][hop]);
+  m_multiQTable[dst][hop] = m_multiQTable[dst][hop] + m_learningRate * (GetReward (hop, rewardType, mobFactor) + m_discoutRate * maxNextQ - m_multiQTable[dst][hop]);
   // update average strategy
   UpdateAvgStrategy (dst);
   // update strategy

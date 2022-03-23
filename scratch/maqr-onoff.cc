@@ -15,6 +15,7 @@
 #include "ns3/yans-wifi-helper.h"
 #include "ns3/flow-monitor-helper.h"
 #include "ns3/flow-monitor-module.h"
+#include "ns3/double.h"
 
 using namespace ns3;
 
@@ -239,7 +240,8 @@ void RoutingExperiment::Run (int nSinks, double txp, std::string CSVfileName)
   YansWifiPhyHelper wifiPhy;
   YansWifiChannelHelper wifiChannel;
   wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
-  wifiChannel.AddPropagationLoss ("ns3::FriisPropagationLossModel");
+  wifiChannel.AddPropagationLoss ("ns3::RangePropagationLossModel");
+  Config::SetDefault ("ns3::RangePropagationLossModel::MaxRange", DoubleValue (250));
   wifiPhy.SetChannel (wifiChannel.Create ());
 
   // add a mac and disable rate control

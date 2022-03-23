@@ -768,17 +768,19 @@ bool RoutingProtocol::Forwarding (Ptr<const Packet> packet, const Ipv4Header& he
     ucb (route, packet, header);
 
     // update Q-table
-    if (m_nb.IsNeighbor (dst))
+    if (nextHop == dst)
     {
       RewardType type = REACH_DESTINATION;
       float maxQ = GetMaxNextStateQValue (nextHop, dst);
-      m_marl.Learn (dst, nextHop, type, maxQ);
+      float mobFactor = GetMobilityFactor (nextHop);
+      m_marl.Learn (dst, nextHop, type, maxQ, mobFactor);
     }
     else
     {
       RewardType type = MIDWAY;
       float maxQ = GetMaxNextStateQValue (nextHop, dst);
-      m_marl.Learn (dst, nextHop, type, maxQ);
+      float mobFactor = GetMobilityFactor (nextHop);
+      m_marl.Learn (dst, nextHop, type, maxQ, mobFactor);
     }
     return true;
   }
@@ -854,6 +856,23 @@ int64_t RoutingProtocol::AssignStreams (int64_t stream)
   NS_LOG_FUNCTION (this << stream);
   m_uniformRandomVariable->SetStream (stream);
   return 1;
+}
+
+float RoutingProtocol::GetMobilityFactor (Ipv4Address hop)
+{
+  NS_LOG_FUNCTION (this);
+  Ptr<Node> nextNode = GetNodeWithAddress (hop);
+  Ptr<MobilityModel> thisMob = m_ipv4->GetObject<MobilityModel> ();
+  Ptr<MobilityModel> hopMob = nextNode->GetObject<MobilityModel> ();
+
+  double dist = thisMob->GetDistanceFrom (hopMob);
+  double relativeSpeed = thisMob->GetRelativeSpeed (hopMob);;
+
+  // propagation-loss--model.cc defines the default Maximum Transmission Range of RangePropagationModel is 250m
+  float distFactor = 1.0 - dist / 250.0;
+  float moveFactor = 1.0 - relativeSpeed / 4.0;
+
+  return distFactor + moveFactor;
 }
 
 } // namespace maqr

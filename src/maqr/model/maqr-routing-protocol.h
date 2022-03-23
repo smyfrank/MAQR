@@ -16,6 +16,7 @@
 #include "ns3/mobility-model.h"
 #include "ns3/controlled-random-waypoint-mobility-model.h"
 #include "ns3/wifi-mac.h"
+#include "ns3/config.h"
 
 #include "ns3/timer.h"
 
@@ -214,6 +215,10 @@ public:
    * \todo
    */
   void NotifyTxError (WifiMacDropReason reason, Ptr<const WifiMacQueueItem> mpdu);
+
+  float GetNextHopBufferOccupationRatio (Ipv4Address hop);
+
+  float GetMobilityFactor (Ipv4Address hop);
 
   // IP protocol
   Ptr<Ipv4> m_ipv4;

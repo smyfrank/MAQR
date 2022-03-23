@@ -127,7 +127,7 @@ public:
    * \returns the reward
    * \TODO: detail design
    */
-  float GetReward(Ipv4Address hop, RewardType type);
+  float GetReward(Ipv4Address hop, RewardType type, float mobFactor);
   /**
    * \brief Insert new (origin, next hop) entry if not exists
    * \param origin the origin address (state)
@@ -182,7 +182,7 @@ public:
   // Get next hop (act)
   virtual Ipv4Address GetNextHop (Ipv4Address dst, const std::set<Ipv4Address>& nbList);
   // Update Q-table, strategy table, average estimation strategy table
-  void Learn (Ipv4Address dst, Ipv4Address hop, RewardType rewardType, float maxNextQ);
+  void Learn (Ipv4Address dst, Ipv4Address hop, RewardType rewardType, float maxNextQ, float mobFactor);
   // Choose m_deltaWin or m_deltaLose
   float ChooseDelta (Ipv4Address dst);
   // update strategy table
