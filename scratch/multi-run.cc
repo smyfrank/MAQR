@@ -33,6 +33,9 @@
 #include "ns3/dsr-module.h"
 #include "ns3/olsr-module.h"
 #include "ns3/dsdv-module.h"
+#include "ns3/maqr-module.h"
+#include "ns3/saqr-module.h"
+#include "ns3/parrot-module.h"
 
 #include "ns3/applications-module.h"
 #include "ns3/netanim-module.h"
@@ -315,7 +318,7 @@ RoutingExperiment::Run (int argc, char **argv)
   uint32_t nNodes = 50; // number of nodes
   uint32_t nSources = 10; // number of source nodes for application traffic (number of sink nodes is the same in this example)
 
-  double simulationDuration = 200.0; // in seconds
+  double simulationDuration = 100.0; // in seconds
   double netStartupTime = 10.0; // [s] time before any application starts sending data
 
   std::string rate ("2048bps"); // application layer data rate
@@ -336,7 +339,7 @@ RoutingExperiment::Run (int argc, char **argv)
   
   bool verbose = false;
   int scenario = 1; // ManhattanGrid
-  uint32_t routingProtocol = 4; ///< routing protocol, DSR default
+  uint32_t routingProtocol = 5; ///< routing protocol, DSR default
   std::string routingProtocolName = ""; // name not specified
   int routingTables = 0; ///< routing tables
 
@@ -364,7 +367,7 @@ RoutingExperiment::Run (int argc, char **argv)
   cmd.AddValue ("fading", "0=None;1=Nakagami;(buildings=1 overrides)", fading);
   cmd.AddValue ("scenario", "1.ManhattanGrid from traceFile, 2.Highway, 3.RandomBox", scenario);
   cmd.AddValue ("routingTables", "Dump routing tables at t=5 seconds", routingTables);
-  cmd.AddValue ("routingProtocol", "1=OLSR;2=AODV;3=DSDV;4=DSR", routingProtocol);
+  cmd.AddValue ("routingProtocol", "1=OLSR;2=AODV;3=DSDV;4=DSR;5=MAQR;6=SAQR;7=PARROT", routingProtocol);
   cmd.AddValue ("routingProtocolName", "Name of the routing protocol used for creating file name for storing results", routingProtocolName);
   
   cmd.Parse (argc, argv);
@@ -589,6 +592,9 @@ RoutingExperiment::Run (int argc, char **argv)
   DsdvHelper dsdv;
   DsrHelper dsr;
   DsrMainHelper dsrMain;
+  MaqrHelper maqr;
+  SaqrHelper saqr;
+  PARRoTHelper parrot;
   Ipv4ListRoutingHelper list;
   InternetStackHelper internet;
 
@@ -658,12 +664,57 @@ RoutingExperiment::Run (int argc, char **argv)
           protocolName = routingProtocolName;
         }
       break;
+    case 5:
+      if (routingTables != 0)
+        {
+          maqr.PrintRoutingTableAllAt (rtt, rtw);
+        }
+      list.Add (maqr, 100);
+      if (routingProtocolName == "")
+        {
+          protocolName = "MAQR";
+        }
+      else
+        {
+          protocolName = routingProtocolName;
+        }
+      break;
+    case 6:
+      if (routingTables != 0)
+        {
+          saqr.PrintRoutingTableAllAt (rtt, rtw);
+        }
+      list.Add (saqr, 100);
+      if (routingProtocolName == "")
+        {
+          protocolName = "SAQR";
+        }
+      else
+        {
+          protocolName = routingProtocolName;
+        }
+      break;
+    case 7:
+      if (routingTables != 0)
+        {
+          parrot.PrintRoutingTableAllAt (rtt, rtw);
+        }
+      list.Add (parrot, 100);
+      if (routingProtocolName == "")
+        {
+          protocolName = "PARROT";
+        }
+      else
+        {
+          protocolName = routingProtocolName;
+        }
+      break;
     default:
       NS_FATAL_ERROR ("No such protocol:" << routingProtocol);
       break;
     }
 
-  if (routingProtocol < 4)
+  if (routingProtocol != 4)
     {
       internet.SetRoutingHelper (list);
       internet.Install (vehicles);

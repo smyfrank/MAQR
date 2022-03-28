@@ -41,3 +41,6 @@ build/
 
 version.cache
 manet-compare/
+
+routing_table
+current-status.txt
