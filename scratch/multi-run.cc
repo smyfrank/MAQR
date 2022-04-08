@@ -53,14 +53,8 @@ NS_LOG_COMPONENT_DEFINE ("promet");
 void
 PrintCurrentTime ()
 {
-  std::ofstream file;
   double time = Simulator::Now ().GetSeconds ();
-  if (time == 0.0)
-    file.open ("current-status.txt", std::ios::trunc);
-  else
-    file.open ("current-status.txt", std::ios::app);
-  file << time << " s\n";
-  file.close ();
+  NS_LOG_UNCOND ("Time " << time << "s");
   Simulator::Schedule (Seconds (1), &PrintCurrentTime);
 }
 
@@ -318,7 +312,7 @@ RoutingExperiment::Run (int argc, char **argv)
   uint32_t nNodes = 50; // number of nodes
   uint32_t nSources = 10; // number of source nodes for application traffic (number of sink nodes is the same in this example)
 
-  double simulationDuration = 100.0; // in seconds
+  double simulationDuration = 500.0; // in seconds
   double netStartupTime = 10.0; // [s] time before any application starts sending data
 
   std::string rate ("2048bps"); // application layer data rate
@@ -329,17 +323,17 @@ RoutingExperiment::Run (int argc, char **argv)
 
   double txp = 20; // dBm, transmission power
   std::string phyMode ("OfdmRate6MbpsBW10MHz"); // physical data rate and modulation type
-  uint32_t lossModel = 3; ///< loss model [default: TwoRayGroundPropagationLossModel]
+  uint32_t lossModel = 1; ///< loss model [default: TwoRayGroundPropagationLossModel]
   bool fading = 0; // 0=None; 1=Nakagami;
   
-  double nodeSpeed = 1.0; // m/s
+  double nodeSpeed = 5.0; // m/s
   double nodePause = 0.0; // s
   double simAreaX = 2000.0; // m
   double simAreaY = 2000.0; // m
   
   bool verbose = false;
-  int scenario = 1; // ManhattanGrid
-  uint32_t routingProtocol = 5; ///< routing protocol, DSR default
+  int scenario = 3; // ManhattanGrid
+  uint32_t routingProtocol = 5; ///< routing protocol, MAQR default
   std::string routingProtocolName = ""; // name not specified
   int routingTables = 0; ///< routing tables
 
@@ -358,10 +352,10 @@ RoutingExperiment::Run (int argc, char **argv)
   cmd.AddValue ("simTime", "Duration of one simulation run.", simulationDuration);
   cmd.AddValue ("width", "Width of simulation area (X-axis).", simAreaX);
   cmd.AddValue ("height", "Height of simulation area (Y-axis).", simAreaY);
-  cmd.AddValue ("simTime", "Height of simulation area (Y-axis).", simulationDuration);
+  // cmd.AddValue ("simTime", "Height of simulation area (Y-axis).", simulationDuration);
   cmd.AddValue ("dataRate", "Application data rate.", rate);
   cmd.AddValue ("packetSize", "Application test packet size.", packetSize);
-  cmd.AddValue ("nodeSpeed", "Application data rate.", nodeSpeed);
+  cmd.AddValue ("nodeSpeed", "Speed of node.", nodeSpeed);
   cmd.AddValue ("verbose", "Turn on all WifiNetDevice log components", verbose);
   cmd.AddValue ("lossModel", "1=Friis;2=ItuR1411Los;3=TwoRayGround;4=LogDistance", lossModel);
   cmd.AddValue ("fading", "0=None;1=Nakagami;(buildings=1 overrides)", fading);
