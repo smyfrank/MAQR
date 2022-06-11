@@ -15,6 +15,7 @@ namespace maqr {
 enum MessageType
 {
   MAQRTYPE_HELLO = 1,
+  MAQRTYPE_ACK = 2,
 };
 
 /**
@@ -170,6 +171,85 @@ private:
   
 };
 
+class AckHeader : public Header
+{
+public:
+  AckHeader (uint8_t reserved8 = 0, uint16_t reserved16 = 0, Ipv4Address origin = Ipv4Address(), 
+          Ipv4Address dst = Ipv4Address(), Ipv4Address dataDst = Ipv4Address(), float maxQ = 0, float succSum = 0);
+
+  static TypeId GetTypeId (void);
+  TypeId GetInstanceTypeId (void) const;
+  uint32_t GetSerializedSize () const;
+  void Serialize (Buffer::Iterator start) const;
+  uint32_t Deserialize (Buffer::Iterator start);
+  void Print (std::ostream &os) const;
+
+    /**
+   * \brief Set originator address
+   * \param origin the originator address
+   */
+  void SetOrigin(Ipv4Address origin)
+  {
+    m_origin = origin;
+  }
+  /**
+   * \brief Get the originator address
+   * \returns the originator address
+   */
+  Ipv4Address GetOrigin() const
+  {
+    return m_origin;
+  }
+
+  void SetDst (Ipv4Address dst)
+  {
+    m_dst = dst;
+  }
+
+  Ipv4Address GetDst () const
+  {
+    return m_dst;
+  }
+
+  void SetDataDst (Ipv4Address dataDst)
+  {
+    m_dataDst = dataDst;
+  }
+
+  Ipv4Address GetDataDst () const
+  {
+    return m_dataDst;
+  }
+
+  void SetMaxQ (float maxQ)
+  {
+    m_maxQ = maxQ;
+  }
+
+  float GetMaxQ () const
+  {
+    return m_maxQ;
+  }
+
+  void SetSuccSum (float succSum)
+  {
+    m_succSum = succSum;
+  }
+
+  float GetSuccSum () const
+  {
+    return m_succSum;
+  }
+
+private:
+  uint8_t m_reserved8;
+  uint16_t m_reserved16;
+  Ipv4Address m_origin;
+  Ipv4Address m_dst;
+  Ipv4Address m_dataDst;
+  float m_maxQ;
+  float m_succSum;
+};
 /**
   * \brief Stream output operator
   * \param os output stream

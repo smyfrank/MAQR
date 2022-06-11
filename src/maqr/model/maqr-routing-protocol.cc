@@ -617,6 +617,10 @@ void RoutingProtocol::RecvMaqr (Ptr<Socket> socket)
       ReceiveHello (packet, receiver, sender);
       break;
     }
+    case MAQRTYPE_ACK:
+    {
+      break;
+    }
   }
 }
 

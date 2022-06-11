@@ -201,6 +201,76 @@ void HelloHeader::Print(std::ostream & os) const
 
 }
 
+AckHeader::AckHeader(uint8_t reserved8, uint16_t reserved16, Ipv4Address origin , 
+          Ipv4Address dst, Ipv4Address dataDst, float maxQ, float succSum)
+          : m_reserved8(reserved8),
+            m_reserved16(reserved16),
+            m_origin(origin),
+            m_dst(dst),
+            m_dataDst(dataDst),
+            m_maxQ(maxQ),
+            m_succSum(succSum)
+{
+
+}
+NS_OBJECT_ENSURE_REGISTERED(AckHeader);
+
+TypeId AckHeader::GetTypeId()
+{
+  static TypeId tid = TypeId("ns3::maqr::AckHeader")
+    .SetParent<Header>()
+    .SetGroupName("MAQR")
+    .AddConstructor<AckHeader>()
+  ;
+  return tid;
+}
+
+TypeId AckHeader::GetInstanceTypeId() const
+{
+  return GetTypeId();
+}
+
+uint32_t AckHeader::GetSerializedSize() const
+{
+  /**
+   * \todo hello header size
+   */
+  return 23;
+}
+
+void AckHeader::Serialize(Buffer::Iterator i) const
+{
+  
+  i.WriteU8(m_reserved8);
+  i.WriteHtonU16(m_reserved16);
+  WriteTo(i, m_origin);
+  WriteTo(i, m_dst);
+  WriteTo(i, m_dataDst);
+  i.WriteHtonU32(FtoU32(m_maxQ));
+  i.WriteHtonU32(FtoU32(m_succSum));
+}
+
+uint32_t AckHeader::Deserialize(Buffer::Iterator start)
+{
+  Buffer::Iterator i = start;
+  m_reserved8 = i.ReadU8();
+  m_reserved16 = i.ReadNtohU16();
+  ReadFrom(i, m_origin);
+  ReadFrom(i, m_dst);
+  ReadFrom(i, m_dataDst);
+  m_maxQ = U32toF(i.ReadNtohU32());
+  m_succSum = U32toF(i.ReadNtohU32());
+
+  uint32_t dist = i.GetDistanceFrom(start);
+  NS_ASSERT(dist == GetSerializedSize());
+  return dist;
+}
+
+void AckHeader::Print(std::ostream &os) const
+{
+  
+}
+
 std::ostream & operator<< (std::ostream & os, HelloHeader const & h)
 {
   h.Print(os);
